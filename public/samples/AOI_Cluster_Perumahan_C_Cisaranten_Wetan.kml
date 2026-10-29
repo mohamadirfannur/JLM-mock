@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Cluster Perumahan C – Cisaranten Wetan</name>
+<Placemark><name>Cluster Perumahan C – Cisaranten Wetan</name><Polygon><outerBoundaryIs><LinearRing><coordinates>107.696357,-6.947994,0 107.696347,-6.948144,0 107.696531,-6.949232,0 107.696585,-6.949296,0 107.697937,-6.949426,0 107.698541,-6.94936,0 107.698597,-6.949249,0 107.698552,-6.94895,0 107.699064,-6.948179,0 107.699482,-6.947996,0 107.699542,-6.947929,0 107.699614,-6.946127,0 107.699171,-6.946056,0 107.698214,-6.945631,0 107.696718,-6.945277,0 107.696635,-6.945291,0 107.696587,-6.94536,0 107.696554,-6.946693,0 107.696357,-6.947994,0</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+</Document></kml>
