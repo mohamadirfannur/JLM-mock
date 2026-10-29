@@ -3,7 +3,8 @@ export interface LayerDef {
   label: string;
   group: string;
   color: string;
-  kind: "fill" | "line" | "circle" | "symbol" | "heat";
+  kind: "fill" | "line" | "circle" | "symbol" | "heat" | "diamond" | "square";
+  cat?: "Pasif" | "Aktif" | "Rute" | "Area";
   mapLayers: string[];
   visible: boolean;
   count?: number;
@@ -28,6 +29,12 @@ export function useLayers() {
   function unregisterGroup(group: string) {
     layers.value = layers.value.filter((l) => l.group !== group);
   }
+  function toggleGroup(group: string, v: boolean) {
+    layers.value.filter((l) => l.group === group).forEach((l) => {
+      l.visible = v;
+      setVisible(l.mapLayers, v);
+    });
+  }
   function toggle(id: string, v?: boolean) {
     const l = layers.value.find((x) => x.id === id);
     if (!l) return;
@@ -46,5 +53,5 @@ export function useLayers() {
     layers.value.forEach((l) => (g[l.group] ||= []).push(l));
     return g;
   });
-  return { layers, groups, register, unregister, unregisterGroup, toggle, setCount, reset };
+  return { layers, groups, register, unregister, unregisterGroup, toggle, toggleGroup, setCount, reset };
 }

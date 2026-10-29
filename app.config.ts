@@ -1,6 +1,6 @@
 export default defineAppConfig({
   ui: {
-    primary: "brand",
+    primary: "jcyan",
     gray: "grey",
     notifications: { position: "bottom-0 top-auto" },
     button: { rounded: "rounded-xs" },

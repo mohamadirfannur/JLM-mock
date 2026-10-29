@@ -1,29 +1,37 @@
-# JLM Map Planner — Clickable Mock
+# JLM Network Planner
 
-Prototype end-to-end untuk JLM (IDTek / Cartogram). **Semua data dummy**, semuanya jalan di browser (tanpa backend).
+Prototype web untuk **PT Jala Lintas Media** — tampilan mengikuti Figma *JLM - Map Planner* (versi Light, font Exo 2 + Inter, warna cyan `#00D4FF` / purple `#7B2FFF`).
+Semua data berjalan di browser (tanpa backend); jaringan jalan, bangunan, dan POI area Gedebage–Rancasari Bandung diambil dari OpenStreetMap, atribut aset & harga bersifat contoh.
 
-Modul:
-- **Market Potential Analysis** (`/map/market-potential`) — hitung jumlah rumah dari AOI (Digitize / Upload KML-KMZ-GeoJSON-SHP / Buffer / Select by Location), kelas rumah, harga, carport, daya listrik, kompetitor ISP, POI, estimasi pelanggan & revenue.
-- **FTTH Auto-Design** (`/map/ftth`) — wizard 5 langkah (Project → Area → Analysis + parameter standar JLM → OLT → Generate), hasil desain di peta (ODP, ODC, OLT, kabel per tipe, tiang T7/T9, coil, JC, drop), skenario penetrasi 30/50/100%, edit manual (pindah / hapus), BOQ/BOM, export KML / DXF(DWG) / PDF / Excel / GeoJSON / CSV, kirim ke Asset Management.
-- **Asset Management** (`/map/asset-management`) — site point & aset pasif/aktif (OTB, OLT, ODC, ODP, Pole, SS, JC, ONT, Mikrotik, Switch, Juniper, Inverter, Rack), tambah / edit / **pindah / hapus**, kabel & route (auto ikut jalan), generate tiang, core config, import KML/Excel, edit atribut massal via Excel, tabel aset, laporan kapasitas ODP/ODC & material terpasang, activity log, as-built dari desain FTTH.
+## Struktur aplikasi
+| Menu | Route | Isi |
+|---|---|---|
+| Login | `/` | Masuk (akun contoh sudah terisi) |
+| Dashboard | `/dashboard` | KPI aset pasif/aktif, coverage FTTH, kualitas data, tabel aset, distribusi, proyek per RW, laporan segmen kabel |
+| Proyek Jaringan | `/proyek` | Daftar proyek FTTH / MPLS / MW + Project Detail (mini map, *Add to Map*) |
+| Peta · Asset Management | `/peta/asset` | Filter Lokasi → peta jaringan, Map Content, Map Tools (tambah sitepoint/kabel, pindah, edit atribut, generate tiang, core config, import, **hapus**), popup aset, detail & port, tabel, activity log |
+| Peta · FTTH Auto-Design | `/peta/ftth` | Desain baru (upload KMZ/Excel/SHP, gambar polygon, pilih RW) → **Processing Queue** → *Generate & Insert to Cable* → hasil, BOQ/BOM, export, kirim ke inventaris |
+| Peta · Planning Market | `/peta/market` | Pilih RW/cluster atau gambar/upload AOI → jumlah rumah, kelas rumah, kompetitor ISP, POI, revenue → *Buat Desain FTTH* |
+| BOQ & BOM | `/boq-bom` | Laporan aktual material: rencana vs terpasang per RW/cluster, skenario 100/30/50%, export Excel/PDF/KML/DXF |
+| Pengguna / Pengaturan | `/pengguna`, `/pengaturan` | Manajemen user, standar desain JLM, harga satuan, integrasi, reset data |
 
-## Alur demo (± 10 menit)
-1. Login (akun demo sudah terisi) → Dashboard → Business Planning → **Market Potential**.
-2. Toolbar bawah **Insight Analysis → Potential Analysis** → klik *Analyze* pada cluster teratas (atau **Analytic Tools → Digitize** dan gambar AOI sendiri).
-3. Di **Analysis Result** lihat jumlah rumah, kompetitor, revenue → klik **Design FTTH untuk AOI ini**.
-4. Wizard FTTH sudah terisi → Next sampai **Generate Network** → lihat hasil, ganti skenario 30/50/100%, tab **BOQ / BOM**, tab **Export**.
-5. Project → Active → ikon pensil (**Edit Site Points**) → klik ODP → Pindah / Hapus.
-6. **Kirim ke Asset Management** → *Buka Asset Management* → aset Planned (ring kuning) → klik aset → detail, port, Delete → Activity Log → Asset Summary → *Set As-built*.
+Di tiap peta, tombol **Fitur lain** (ikon grid di kanan) membuka *Map Dashboard* untuk pindah modul. Area yang dipilih di Filter Lokasi dipakai bersama oleh semua modul.
 
-Menu ☰ → **Reset Demo Data** untuk mengulang dari awal.
+## Alur presentasi (± 10 menit)
+1. Login → Dashboard.
+2. Peta → **Filter Lokasi**: pilih *Cluster Perumahan C · Cisaranten Wetan* → *Terapkan Data* → klik ODC/ODP → popup → *Edit Aset* (port, edit, hapus).
+3. Fitur lain → **Planning Market** → Filter Lokasi pilih *RW 07 Cipamokolan* → lihat jumlah rumah & potensi → *Buat Desain FTTH untuk area ini*.
+4. Wizard FTTH (parameter standar JLM sudah terisi) → *Proses Desain* → pantau **Processing Queue** → *Generate & Insert to Cable* → Hasil Desain (skenario 30/50/100%, BOQ/BOM, Export) → *Kirim ke inventaris aset*.
+5. Buka di Asset Management (aset status rencana, garis putus-putus) → Ringkasan → *Set As-built*.
+6. **BOQ & BOM** → pilih cluster → rencana vs terpasang → Export.
+
+Pengaturan → Data → *Reset ke kondisi awal* untuk mengulang presentasi.
 
 ## Development
 ```bash
+cp .env.example .env      # isi NUXT_PUBLIC_MAPTILER_KEY
 pnpm install
-pnpm dev          # http://localhost:3000
-pnpm build        # Vercel: preset Nuxt + env NUXT_PUBLIC_MAPTILER_KEY
+pnpm dev                  # http://localhost:3000
+pnpm build                # Vercel: preset Nuxt + env NUXT_PUBLIC_MAPTILER_KEY
 ```
-MapTiler key: copy `.env.example` ke `.env` dan isi `NUXT_PUBLIC_MAPTILER_KEY`. Di Vercel tambahkan env var yang sama (Settings → Environment Variables).
-
-Data area Gedebage–Rancasari, Bandung dibangun dari OpenStreetMap (jalan, bangunan, POI) dengan atribut sintetis:
-`node scripts/build-data.mjs <folder raw OSM>` → `public/data/*`. Lihat `PLAN.md` untuk standar desain JLM yang dipakai.
+Data referensi dibangun ulang dengan `node scripts/build-data.mjs <folder raw OSM>` → `public/data/*`.

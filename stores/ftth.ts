@@ -29,12 +29,65 @@ export interface FtthProject {
 }
 
 const KEY = "jlm-ftth-projects-v1";
+const JKEY = "jlm-ftth-jobs-v1";
+
+export interface FtthJob {
+  id: string;
+  projectId: string;
+  source: string; // KMZ Import / Excel/GIS Import / Gambar Poligon / Market Potential / Sample
+  file: string;
+  user: string;
+  role: string;
+  createdAt: string;
+  progress: number;
+  phase: string;
+  status: "processing" | "paused" | "completed" | "inserted";
+  homes: number;
+  rw: string;
+}
+export const JOB_PHASES = ["Parsing & validating nodes", "Snap rumah ke jaringan jalan", "Clustering ODP (≤16 HP, ≤250 m)", "Grouping ODC 24C / 48C", "Routing feeder dari OLT", "Generating cable & ODP layout", "Penempatan tiang, coil & JC", "Penomoran aset & BOQ/BOM"];
 
 export const useFtthStore = defineStore("ftth", () => {
   const projects = ref<FtthProject[]>([]);
   const active = ref<string[]>([]); // project ids shown on map
   const focusId = ref<string | null>(null);
   const results = shallowRef<Record<string, FtthResult>>({});
+  const jobs = ref<FtthJob[]>([]);
+  try {
+    const rj = localStorage.getItem(JKEY);
+    if (rj) jobs.value = JSON.parse(rj);
+  } catch {}
+  watch(jobs, (v) => {
+    try {
+      localStorage.setItem(JKEY, JSON.stringify(v));
+    } catch {}
+  }, { deep: true });
+  let timer: any = null;
+  function tick() {
+    let any = false;
+    jobs.value.forEach((j) => {
+      if (j.status !== "processing") return;
+      any = true;
+      j.progress = Math.min(100, j.progress + 3 + Math.random() * 5);
+      j.phase = JOB_PHASES[Math.min(JOB_PHASES.length - 1, Math.floor((j.progress / 100) * JOB_PHASES.length))];
+      if (j.progress >= 100) {
+        j.status = "completed";
+        j.phase = "Selesai · siap insert ke kabel";
+        useToast().add({ title: "Desain FTTH selesai", description: `${j.file} siap di-generate ke peta`, icon: "i-lucide-circle-check-big", color: "green" });
+      }
+    });
+    if (!any) (clearInterval(timer), (timer = null));
+  }
+  function runQueue() {
+    if (!timer) timer = setInterval(tick, 700);
+  }
+  function enqueue(p: FtthProject, source: string, file: string) {
+    const auth = useAuthStore();
+    const j: FtthJob = { id: `${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${p.params.areaCode}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`, projectId: p.id, source, file, user: auth.user?.name || "Network Planner", role: auth.user?.role || "Network Planner", createdAt: nowStr(), progress: 2, phase: JOB_PHASES[0], status: "processing", homes: p.homes, rw: p.kelurahan || p.kecamatan };
+    jobs.value.unshift(j);
+    runQueue();
+    return j;
+  }
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) projects.value = JSON.parse(raw);
@@ -50,6 +103,7 @@ export const useFtthStore = defineStore("ftth", () => {
   );
 
   function ensureSeed(geo: ReturnType<typeof useGeoData>) {
+    if (jobs.value.some((j) => j.status === "processing")) runQueue();
     if (projects.value.length) return;
     const aois = geo.data.aoi!.features;
     const picks = [aois[0], aois[5]];
@@ -72,9 +126,19 @@ export const useFtthStore = defineStore("ftth", () => {
         edits: [],
         createdAt: nowStr(),
         updatedAt: nowStr(),
-        source: "Sample AOI",
+        source: i === 0 ? "KMZ Import" : "Excel/GIS Import",
       });
+      jobs.value.push({ id: `20261027-${i === 0 ? "CSE" : "CSW"}-0${i + 1}`, projectId: `prj-seed-${i + 1}`, source: i === 0 ? "KMZ Import" : "Excel/GIS Import", file: i === 0 ? "Cluster-A-CisarantenEndah.kmz" : "RW06-CisarantenWetan.xlsx", user: i === 0 ? "Adit Pradana" : "Rudi Hartono", role: "Network Planner", createdAt: i === 0 ? "27 Okt 2026, 19.33" : "28 Okt 2026, 08.14", progress: 100, phase: "Selesai · siap insert ke kabel", status: i === 0 ? "inserted" : "completed", homes: aoi.properties.homes, rw: aoi.properties.kel });
     });
+    // one design still running when the planner opens the module
+    const third = aois[3];
+    if (third) {
+      const pop = nearestPop(turf.centroid(third).geometry.coordinates as [number, number]);
+      const p: FtthProject = { id: "prj-seed-3", name: third.properties.name, description: "Import batas RW dari tim survei", kecamatan: "Rancasari", kelurahan: third.properties.kel, aoi: { type: "Feature", properties: {}, geometry: third.geometry }, params: { ...DEFAULT_PARAMS, areaCode: "CPM" }, oltMode: "site", olt: pop.coord, oltLabel: pop.name, status: "Draft", homes: third.properties.homes, edits: [], createdAt: nowStr(), updatedAt: nowStr(), source: "Excel/GIS Import" };
+      projects.value.push(p);
+      jobs.value.unshift({ id: "20261029-CPM-07", projectId: p.id, source: "Excel/GIS Import", file: "20261029-RW07-Cipamokolan.xlsx", user: "Wade Warren", role: "Network Planner", createdAt: nowStr(), progress: 42, phase: JOB_PHASES[3], status: "processing", homes: p.homes, rw: third.properties.kel });
+      runQueue();
+    }
   }
 
   function compute(p: FtthProject, geo: ReturnType<typeof useGeoData>): FtthResult {
@@ -116,7 +180,7 @@ export const useFtthStore = defineStore("ftth", () => {
   }
 
   function create(p: Omit<FtthProject, "id" | "createdAt" | "updatedAt" | "edits" | "status">) {
-    const proj: FtthProject = { ...p, id: uid("prj"), createdAt: nowStr(), updatedAt: nowStr(), edits: [], status: "Designed" };
+    const proj: FtthProject = { ...p, id: uid("prj"), createdAt: nowStr(), updatedAt: nowStr(), edits: [], status: "Draft" };
     projects.value.unshift(proj);
     return proj;
   }
@@ -126,6 +190,7 @@ export const useFtthStore = defineStore("ftth", () => {
   }
   function remove(pid: string) {
     projects.value = projects.value.filter((p) => p.id !== pid);
+    jobs.value = jobs.value.filter((j) => j.projectId !== pid);
     active.value = active.value.filter((x) => x !== pid);
     if (focusId.value === pid) focusId.value = null;
   }
@@ -136,5 +201,5 @@ export const useFtthStore = defineStore("ftth", () => {
     p.updatedAt = nowStr();
   }
   const byId = (pid: string) => projects.value.find((p) => p.id === pid);
-  return { projects, active, focusId, results, ensureSeed, compute, create, update, remove, addEdit, byId, JLM_POPS };
+  return { projects, active, focusId, results, jobs, enqueue, runQueue, ensureSeed, compute, create, update, remove, addEdit, byId, JLM_POPS };
 });

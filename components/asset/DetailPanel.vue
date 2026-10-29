@@ -69,8 +69,8 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
     <template #actions>
       <UButton v-if="site" size="2xs" color="gray" variant="ghost" icon="i-heroicons-magnifying-glass-plus" @click="$emit('zoom', site.coord)" />
     </template>
-    <div v-if="!site && !cable" class="py-16 text-center text-xs text-grey-500">
-      <UIcon name="i-heroicons-cursor-arrow-rays" class="w-10 h-10 text-grey-300 mb-2" /><br />Klik site point atau kabel di peta untuk melihat detail.
+    <div v-if="!site && !cable" class="py-16 text-center text-xs text-j-sub">
+      <UIcon name="i-heroicons-cursor-arrow-rays" class="w-10 h-10 text-j-mute mb-2" /><br />Klik site point atau kabel di peta untuk melihat detail.
     </div>
 
     <!-- SITE -->
@@ -79,7 +79,7 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
         <span class="w-3 h-3 rounded-full" :style="{ background: SITE_COLORS[site.type] }" />
         <span class="text-sm font-semibold">{{ site.type }}</span>
         <span class="text-[11px] px-2 py-0.5 rounded-xxs" :class="statusColor[site.status]">{{ site.status }}</span>
-        <span v-if="site.project" class="text-[10px] text-grey-500 truncate">· {{ site.project }}</span>
+        <span v-if="site.project" class="text-[10px] text-j-sub truncate">· {{ site.project }}</span>
       </div>
       <div class="flex gap-2">
         <UButton size="xs" variant="soft" icon="i-heroicons-pencil-square" @click="startEdit">Edit</UButton>
@@ -87,7 +87,7 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
         <UButton size="xs" variant="soft" icon="i-heroicons-plus" @click="$emit('addAsset', site.id)">Add Asset</UButton>
         <UButton size="xs" color="red" variant="soft" icon="i-heroicons-trash" @click="confirmDel = { kind: 'site', id: site.id, label: site.code }">Delete</UButton>
       </div>
-      <div v-if="editing" class="border rounded-xs p-3 grid grid-cols-2 gap-2 bg-grey-50">
+      <div v-if="editing" class="border rounded-xs p-3 grid grid-cols-2 gap-2 bg-j-bg">
         <UFormGroup label="Name" size="xs"><UInput v-model="form.name" size="xs" /></UFormGroup>
         <UFormGroup label="Code" size="xs"><UInput v-model="form.code" size="xs" /></UFormGroup>
         <UFormGroup label="Site Type" size="xs"><USelect v-model="form.type" :options="[...SITE_TYPES]" size="xs" /></UFormGroup>
@@ -108,19 +108,19 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
           ['Project', site.project],
           ['Date Created', site.createdAt],
           ['Date Updated', site.updatedAt],
-        ].filter((r) => r[1])" :key="row[0]" class="flex justify-between gap-3 p-2"><span class="text-grey-500">{{ row[0] }}</span><span class="font-medium text-right">{{ row[1] }}</span></div>
+        ].filter((r) => r[1])" :key="row[0]" class="flex justify-between gap-3 p-2"><span class="text-j-sub">{{ row[0] }}</span><span class="font-medium text-right">{{ row[1] }}</span></div>
       </div>
       <div>
         <p class="text-sm font-semibold mb-2">Assets ({{ assets.length }})</p>
-        <div v-if="!assets.length" class="text-xs text-grey-500 border rounded-xxs p-4 text-center">Belum ada aset di site point ini.</div>
+        <div v-if="!assets.length" class="text-xs text-j-sub border rounded-xxs p-4 text-center">Belum ada aset di site point ini.</div>
         <div v-for="a in assets" :key="a.id" class="border rounded-xxs mb-2">
           <button class="w-full flex items-center justify-between p-2 text-left" @click="openAsset = openAsset === a.id ? null : a.id">
             <div class="min-w-0">
               <p class="text-xs font-semibold truncate">{{ a.type }} · {{ a.name }}</p>
-              <p class="text-[10px] text-grey-500">{{ a.code }} · {{ a.category }}</p>
+              <p class="text-[10px] text-j-sub">{{ a.code }} · {{ a.category }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span v-if="util(a) !== null" class="text-[10px] px-1.5 py-0.5 rounded-xxs" :class="util(a)! >= 80 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'">{{ util(a) }}% used</span>
+              <span v-if="util(a) !== null" class="text-[10px] px-1.5 py-0.5 rounded-xxs" :class="util(a)! >= 80 ? 'bg-red-100 text-red-700' : 'bg-j-cyan/10 text-j-blue'">{{ util(a) }}% used</span>
               <UIcon name="i-heroicons-chevron-down" class="w-4 h-4" :class="openAsset === a.id ? 'rotate-180' : ''" />
             </div>
           </button>
@@ -138,17 +138,17 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
                 ['Inspected By', a.inspectedBy],
                 ...Object.entries(a.extra || {}),
               ].filter((r) => r[1])" :key="row[0]">
-                <span class="text-grey-500">{{ row[0] }}</span><span class="font-medium">{{ row[1] }}</span>
+                <span class="text-j-sub">{{ row[0] }}</span><span class="font-medium">{{ row[1] }}</span>
               </template>
             </div>
-            <p v-if="a.description" class="text-[11px] text-grey-600">{{ a.description }}</p>
+            <p v-if="a.description" class="text-[11px] text-j-sub">{{ a.description }}</p>
             <div v-if="a.ports?.length">
-              <p class="text-[11px] font-semibold mb-1">Port ({{ a.ports.filter((p) => p.status === 'Used').length }}/{{ a.ports.length }} used) <span class="font-normal text-grey-400">· klik untuk ubah status</span></p>
+              <p class="text-[11px] font-semibold mb-1">Port ({{ a.ports.filter((p) => p.status === 'Used').length }}/{{ a.ports.length }} used) <span class="font-normal text-j-sub">· klik untuk ubah status</span></p>
               <div class="grid gap-1" :class="a.ports.length > 24 ? 'grid-cols-12' : 'grid-cols-8'">
-                <button v-for="(p, i) in a.ports" :key="p.no" class="h-6 rounded-[3px] text-[9px] font-medium" :class="p.status === 'Used' ? 'bg-blue-500 text-white' : p.status === 'Reserved' ? 'bg-yellow-300' : 'bg-grey-100 text-grey-500'" :title="`Port ${p.no} · ${p.status}${p.to ? ' · ' + p.to : ''}`" @click="togglePort(a, i)">{{ p.no }}</button>
+                <button v-for="(p, i) in a.ports" :key="p.no" class="h-6 rounded-[3px] text-[9px] font-medium" :class="p.status === 'Used' ? 'bg-blue-500 text-white' : p.status === 'Reserved' ? 'bg-yellow-300' : 'bg-j-bg text-j-sub'" :title="`Port ${p.no} · ${p.status}${p.to ? ' · ' + p.to : ''}`" @click="togglePort(a, i)">{{ p.no }}</button>
               </div>
             </div>
-            <div v-if="a.attachments?.length" class="text-[11px]"><span class="text-grey-500">Attachments:</span> {{ a.attachments.map((x) => x.label).join(", ") }}</div>
+            <div v-if="a.attachments?.length" class="text-[11px]"><span class="text-j-sub">Attachments:</span> {{ a.attachments.map((x) => x.label).join(", ") }}</div>
             <div class="flex gap-2 pt-1">
               <UButton size="2xs" variant="soft" icon="i-heroicons-pencil" @click="$emit('editAsset', site.id, a.id)">Edit</UButton>
               <UButton size="2xs" color="red" variant="soft" icon="i-heroicons-trash" @click="confirmDel = { kind: 'asset', id: a.id, label: a.code }">Delete Asset</UButton>
@@ -170,7 +170,7 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
         <UButton size="xs" variant="soft" icon="i-heroicons-bars-3-bottom-left" @click="$emit('poles', cable.id)">Generate Pole</UButton>
         <UButton size="xs" color="red" variant="soft" icon="i-heroicons-trash" @click="confirmDel = { kind: 'cable', id: cable.id, label: cable.label }">Delete</UButton>
       </div>
-      <div v-if="editing" class="border rounded-xs p-3 grid grid-cols-2 gap-2 bg-grey-50">
+      <div v-if="editing" class="border rounded-xs p-3 grid grid-cols-2 gap-2 bg-j-bg">
         <UFormGroup label="Label (format JLM)" size="xs" class="col-span-2"><UInput v-model="form.label" size="xs" /></UFormGroup>
         <UFormGroup label="Tipe" size="xs"><USelect v-model="form.type" :options="['Backbone', 'Feeder', 'Sub Feeder', 'Distribusi', 'Drop']" size="xs" /></UFormGroup>
         <UFormGroup label="Core" size="xs"><USelect v-model.number="form.cores" :options="[12, 24, 48, 96, 144, 288]" size="xs" /></UFormGroup>
@@ -189,11 +189,11 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
           ['Dari', cable.from],
           ['Ke', cable.to],
           ['Project', cable.project],
-        ].filter((r) => r[1])" :key="row[0]" class="flex justify-between gap-3 p-2"><span class="text-grey-500 shrink-0">{{ row[0] }}</span><span class="font-medium text-right break-all">{{ row[1] }}</span></div>
+        ].filter((r) => r[1])" :key="row[0]" class="flex justify-between gap-3 p-2"><span class="text-j-sub shrink-0">{{ row[0] }}</span><span class="font-medium text-right break-all">{{ row[1] }}</span></div>
       </div>
       <div>
         <p class="text-sm font-semibold mb-1">Core Config</p>
-        <p class="text-[11px] text-grey-500 mb-2">Warna core standar TIA-598. Pilih tujuan untuk menandai core terpakai.</p>
+        <p class="text-[11px] text-j-sub mb-2">Warna core standar TIA-598. Pilih tujuan untuk menandai core terpakai.</p>
         <div class="space-y-2">
           <div v-for="t in Math.min(cable.tubes, 4)" :key="t" class="border rounded-xxs p-2">
             <p class="text-[11px] font-semibold mb-1 flex items-center gap-2"><span class="w-3 h-3 rounded-full border" :style="{ background: TIA[(t - 1) % 12] }" />Tube {{ t }}</p>
@@ -208,7 +208,7 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
               </div>
             </div>
           </div>
-          <p v-if="cable.tubes > 4" class="text-[10px] text-grey-500">+ {{ cable.tubes - 4 }} tube lainnya</p>
+          <p v-if="cable.tubes > 4" class="text-[10px] text-j-sub">+ {{ cable.tubes - 4 }} tube lainnya</p>
         </div>
       </div>
     </div>
@@ -219,10 +219,10 @@ const statusColor: Record<string, string> = { Installed: "bg-green-100 text-gree
           <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center"><UIcon name="i-heroicons-trash" class="w-5 h-5 text-red-600" /></div>
           <div>
             <p class="font-semibold">Hapus {{ confirmDel?.kind === "site" ? "site point" : confirmDel?.kind === "asset" ? "aset" : "kabel" }}?</p>
-            <p class="text-xs text-grey-500">{{ confirmDel?.label }}</p>
+            <p class="text-xs text-j-sub">{{ confirmDel?.label }}</p>
           </div>
         </div>
-        <p v-if="confirmDel?.kind === 'site'" class="text-xs text-grey-600">Semua aset di site point ini ikut terhapus. Tercatat di Activity Log.</p>
+        <p v-if="confirmDel?.kind === 'site'" class="text-xs text-j-sub">Semua aset di site point ini ikut terhapus. Tercatat di Activity Log.</p>
         <div class="flex justify-end gap-2"><UButton color="gray" variant="ghost" @click="confirmDel = null">Cancel</UButton><UButton color="red" @click="doDelete">Delete</UButton></div>
       </div>
     </UModal>

@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { runFtthDesign, DEFAULT_PARAMS, type FtthResult } from "~/utils/ftthEngine";
-import { JLM_POPS } from "~/utils/jlmSites";
+import { JLM_POPS, nearestPop } from "~/utils/jlmSites";
+import * as turf from "@turf/turf";
 
 export type Status = "Installed" | "Planned" | "Maintenance";
 
@@ -70,7 +71,7 @@ export interface Activity {
   detail: string;
 }
 
-const KEY = "jlm-assets-v2";
+const KEY = "jlm-assets-v3";
 const id = (p: string) => `${p}-${Math.random().toString(36).slice(2, 9)}`;
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (d: number) => new Date(Date.now() - d * 864e5).toISOString().slice(0, 10);
@@ -175,11 +176,12 @@ export const useAssetStore = defineStore("asset", () => {
       assets.value.push(...p.assets);
     });
     const aois = geo.data.aoi!.features;
-    const picks = [aois[2], aois[9], aois[7]].filter(Boolean);
+    const picks = [2, 9, 7, 8, 10, 11, 12, 13].map((i) => aois[i]).filter(Boolean);
     picks.forEach((aoi: any, i: number) => {
-      const pop = JLM_POPS[[0, 1, 2][i] ?? 0];
-      const r = runFtthDesign({ name: aoi.properties.name, aoi, homes: geo.buildingsIn(aoi), roads: geo.roadsNear(aoi, 400, pop.coord), olt: pop.coord, params: { ...DEFAULT_PARAMS, areaCode: ["CWT", "CSK", "RCB"][i] || "GDB" } });
-      const d = designToAssets(r, aoi.properties.name, "Installed", 380 - i * 90);
+      const c = turf.centroid(aoi).geometry.coordinates as [number, number];
+      const pop = nearestPop(c);
+      const r = runFtthDesign({ name: aoi.properties.name, aoi, homes: geo.buildingsIn(aoi), roads: geo.roadsNear(aoi, 400, pop.coord), olt: pop.coord, params: { ...DEFAULT_PARAMS, areaCode: ["CWT", "CSK", "RB5", "DRW", "RBK", "CMC", "MKM", "RB2"][i] || "GDB" } });
+      const d = designToAssets(r, aoi.properties.name, "Installed", 420 - i * 45);
       sites.value.push(...d.sites);
       assets.value.push(...d.assets);
       cables.value.push(...d.cables);

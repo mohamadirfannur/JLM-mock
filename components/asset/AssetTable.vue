@@ -33,8 +33,8 @@ function exportX() {
     <div class="p-3 flex items-center justify-between gap-2 border-b">
       <div class="flex items-center gap-3">
         <h2 class="text-md text-black">Asset Table</h2>
-        <div class="flex bg-grey-100 rounded-xxs p-1">
-          <button v-for="t in [{ k: 'sites', l: `Site Points (${store.sites.length})` }, { k: 'assets', l: `Assets (${store.assets.length})` }, { k: 'cables', l: `Cables (${store.cables.length})` }]" :key="t.k" class="px-3 py-1 text-xs rounded-xxs" :class="tab === t.k ? 'bg-white shadow-sm' : 'text-grey-600'" @click="tab = t.k as any">{{ t.l }}</button>
+        <div class="flex bg-j-bg rounded-xxs p-1">
+          <button v-for="t in [{ k: 'sites', l: `Site Points (${store.sites.length})` }, { k: 'assets', l: `Assets (${store.assets.length})` }, { k: 'cables', l: `Cables (${store.cables.length})` }]" :key="t.k" class="px-3 py-1 text-xs rounded-xxs" :class="tab === t.k ? 'bg-white shadow-sm' : 'text-j-sub'" @click="tab = t.k as any">{{ t.l }}</button>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -48,7 +48,7 @@ function exportX() {
     </div>
     <div class="flex-1 overflow-auto thin-scrollbar">
       <table class="w-full text-xs">
-        <thead class="sticky top-0 bg-grey-200"><tr><th v-for="c in cols" :key="c" class="text-left px-3 py-2 font-semibold whitespace-nowrap">{{ c }}</th></tr></thead>
+        <thead class="sticky top-0 bg-j-soft"><tr><th v-for="c in cols" :key="c" class="text-left px-3 py-2 font-semibold whitespace-nowrap">{{ c }}</th></tr></thead>
         <tbody>
           <tr v-for="r in rows.slice((page - 1) * PER, page * PER)" :key="r.Kode + r._id" class="border-t hover:bg-blue-50 cursor-pointer" @click="$emit('select', r._k, r._id)">
             <td v-for="c in cols" :key="c" class="px-3 py-1.5 whitespace-nowrap max-w-[22rem] truncate">
@@ -59,7 +59,7 @@ function exportX() {
         </tbody>
       </table>
     </div>
-    <div class="p-2 border-t flex items-center justify-between text-xs text-grey-600">
+    <div class="p-2 border-t flex items-center justify-between text-xs text-j-sub">
       <span>{{ fmt(rows.length) }} rows</span>
       <UPagination v-model="page" :total="rows.length" :page-count="PER" size="2xs" />
     </div>

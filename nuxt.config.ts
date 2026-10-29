@@ -1,14 +1,12 @@
-// JLM Map Planner — clickable mock (all data is dummy, runs fully in the browser)
+// JLM Network Planner — Jala Lintas Media (prototype, runs fully in the browser)
 export default defineNuxtConfig({
   ssr: false,
   compatibilityDate: "2024-10-01",
   devtools: { enabled: false },
-  css: ["~/assets/css/main.css"],
-  modules: ["@nuxt/ui", "@pinia/nuxt", "nuxt-svgo"],
+  modules: ["@nuxt/ui", "@pinia/nuxt"],
   colorMode: { preference: "light", fallback: "light" },
-  tailwindcss: { exposeConfig: false, viewer: false },
+  tailwindcss: { exposeConfig: false, viewer: false, cssPath: "~/assets/css/main.css" },
   icon: { serverBundle: "local", clientBundle: { scan: true, sizeLimitKb: 512 } },
-  svgo: { autoImportPath: false, defaultImport: "component" },
   pinia: { storesDirs: ["./stores/**"] },
   runtimeConfig: {
     public: {
@@ -17,13 +15,13 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: "JLM Map Planner",
+      title: "JLM Network Planner",
       meta: [{ name: "viewport", content: "width=device-width, initial-scale=1" }],
       link: [
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap",
         },
       ],
     },

@@ -29,7 +29,14 @@ const aoi = ref<any>(null);
 const aoiSource = ref("");
 const uploadName = ref("");
 const uploadErr = ref("");
-const params = reactive<FtthParams>({ ...DEFAULT_PARAMS });
+const stdDefaults = (): FtthParams => {
+  try {
+    return { ...DEFAULT_PARAMS, ...JSON.parse(localStorage.getItem("jlm-standards") || "{}") };
+  } catch {
+    return { ...DEFAULT_PARAMS };
+  }
+};
+const params = reactive<FtthParams>(stdDefaults());
 const oltMode = ref<"site" | "input" | "auto">("site");
 const sitePop = ref(JLM_POPS[0].code);
 const analyzing = ref(false);
@@ -136,7 +143,7 @@ function reset() {
   aoi.value = null;
   aoiSource.value = "";
   uploadName.value = "";
-  Object.assign(params, DEFAULT_PARAMS);
+  Object.assign(params, stdDefaults());
   oltMode.value = "site";
 }
 function generate() {
@@ -165,21 +172,21 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
     <div class="bg-white rounded-lg w-full max-w-xl shadow-2xl max-h-[92vh] flex flex-col fade-up">
       <div class="flex items-center justify-between p-4 border-b">
         <div class="flex items-center gap-2">
-          <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-brand-500" />
-          <h2 class="text-lg font-semibold text-grey-900">{{ title }}</h2>
+          <UIcon name="i-heroicons-squares-2x2" class="w-5 h-5 text-j-cyan" />
+          <h2 class="text-lg font-semibold text-j-ink">{{ title }}</h2>
         </div>
-        <button class="text-grey-400 hover:text-grey-600" @click="$emit('close')"><UIcon name="i-heroicons-x-mark" class="w-5 h-5" /></button>
+        <button class="text-j-sub hover:text-j-sub" @click="$emit('close')"><UIcon name="i-heroicons-x-mark" class="w-5 h-5" /></button>
       </div>
       <div class="px-6 py-4">
         <div class="flex items-center justify-center">
           <template v-for="(s, i) in steps" :key="s.n">
             <div class="flex items-center">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" :class="step === s.n ? 'bg-brand-500 text-white' : step > s.n ? 'bg-green-500 text-white' : 'bg-grey-200 text-grey-500'">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" :class="step === s.n ? 'bg-j-bg0 text-white' : step > s.n ? 'bg-green-500 text-white' : 'bg-j-soft text-j-sub'">
                 <UIcon v-if="step > s.n" name="i-heroicons-check" class="w-4 h-4" /><template v-else>{{ s.n }}</template>
               </div>
-              <span v-if="step === s.n" class="ml-2 text-sm text-brand-500 font-medium whitespace-nowrap">{{ s.label }}</span>
+              <span v-if="step === s.n" class="ml-2 text-sm text-j-cyan font-medium whitespace-nowrap">{{ s.label }}</span>
             </div>
-            <div v-if="i < steps.length - 1" class="w-8 h-0.5 mx-2" :class="step > s.n ? 'bg-green-500' : 'bg-grey-200'" />
+            <div v-if="i < steps.length - 1" class="w-8 h-0.5 mx-2" :class="step > s.n ? 'bg-green-500' : 'bg-j-soft'" />
           </template>
         </div>
       </div>
@@ -207,22 +214,22 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
             </div>
             <button class="text-xs text-red-600" @click="aoi = null">Clear</button>
           </div>
-          <label class="block border-2 border-dashed border-grey-300 hover:border-grey-400 rounded-lg p-6 text-center cursor-pointer">
-            <UIcon name="i-heroicons-cloud-arrow-up" class="w-10 h-10 text-brand-500 mx-auto mb-2" />
-            <p class="text-sm font-medium text-grey-900">{{ uploadName || "Upload AOI File" }}</p>
-            <p class="text-xs text-grey-500 mt-1">Drag & drop or click to upload</p>
-            <p class="text-xs text-grey-400">KML, KMZ, GeoJSON, SHP (.zip) — batas RW / cluster</p>
+          <label class="block border-2 border-dashed border-j-line hover:border-grey-400 rounded-lg p-6 text-center cursor-pointer">
+            <UIcon name="i-heroicons-cloud-arrow-up" class="w-10 h-10 text-j-cyan mx-auto mb-2" />
+            <p class="text-sm font-medium text-j-ink">{{ uploadName || "Upload AOI File" }}</p>
+            <p class="text-xs text-j-sub mt-1">Drag & drop or click to upload</p>
+            <p class="text-xs text-j-sub">KML, KMZ, GeoJSON, SHP (.zip) — batas RW / cluster</p>
             <input type="file" class="hidden" accept=".kml,.kmz,.geojson,.json,.zip" @change="onFile" />
           </label>
           <p v-if="uploadErr" class="text-xs text-red-500">{{ uploadErr }}</p>
-          <div class="flex items-center gap-4"><div class="flex-1 border-t" /><span class="text-sm text-grey-400">OR</span><div class="flex-1 border-t" /></div>
+          <div class="flex items-center gap-4"><div class="flex-1 border-t" /><span class="text-sm text-j-sub">OR</span><div class="flex-1 border-t" /></div>
           <UButton block variant="soft" icon="i-heroicons-pencil-square" @click="$emit('requestDraw')">{{ aoiSource === "Digambar di peta" ? "Edit Drawing on Map" : "Draw on Map" }}</UButton>
           <div>
-            <p class="text-xs font-medium text-grey-700 mb-2">Atau pilih batas RW / cluster contoh:</p>
+            <p class="text-xs font-medium text-j-ink mb-2">Atau pilih batas RW / cluster contoh:</p>
             <div class="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto thin-scrollbar">
               <button v-for="s in samples" :key="s.properties.id" class="text-left text-[11px] p-2 border rounded-xxs hover:border-blue-500" @click="useSample(s)">
                 <p class="font-medium truncate">{{ s.properties.name }}</p>
-                <p class="text-grey-500">± {{ fmt(s.properties.homes) }} rumah</p>
+                <p class="text-j-sub">± {{ fmt(s.properties.homes) }} rumah</p>
               </button>
             </div>
           </div>
@@ -231,35 +238,35 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
         <!-- 3 -->
         <div v-if="step === 3" class="space-y-4">
           <div v-if="analyzing" class="text-center py-8">
-            <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-brand-500 mx-auto mb-3 animate-spin" />
-            <p class="text-sm font-medium text-grey-700">Analyzing area...</p>
-            <p class="text-xs text-grey-500 mt-1">Menghitung footprint rumah di dalam AOI</p>
+            <UIcon name="i-heroicons-arrow-path" class="w-12 h-12 text-j-cyan mx-auto mb-3 animate-spin" />
+            <p class="text-sm font-medium text-j-ink">Analyzing area...</p>
+            <p class="text-xs text-j-sub mt-1">Menghitung footprint rumah di dalam AOI</p>
           </div>
           <template v-else-if="quick">
             <div class="bg-green-50 border border-green-200 rounded-xxs p-4">
               <div class="flex items-center gap-2 mb-3"><UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-600" /><span class="text-sm font-medium text-green-700">Area Analysis Complete</span></div>
               <div class="grid grid-cols-4 gap-3 text-center">
-                <div><p class="text-2xl font-bold text-green-600">{{ fmt(quick.homes) }}</p><p class="text-[11px] text-grey-600">Total Footprint</p></div>
-                <div><p class="text-2xl font-bold text-green-600">± {{ quick.odp }}</p><p class="text-[11px] text-grey-600">ODP Needed</p></div>
-                <div><p class="text-2xl font-bold text-green-600">{{ quick.odc }}</p><p class="text-[11px] text-grey-600">ODC Needed</p></div>
-                <div><p class="text-2xl font-bold text-green-600">{{ quick.lines.length }}</p><p class="text-[11px] text-grey-600">Total Lines</p></div>
+                <div><p class="text-2xl font-bold text-green-600">{{ fmt(quick.homes) }}</p><p class="text-[11px] text-j-sub">Total Footprint</p></div>
+                <div><p class="text-2xl font-bold text-green-600">± {{ quick.odp }}</p><p class="text-[11px] text-j-sub">ODP Needed</p></div>
+                <div><p class="text-2xl font-bold text-green-600">{{ quick.odc }}</p><p class="text-[11px] text-j-sub">ODC Needed</p></div>
+                <div><p class="text-2xl font-bold text-green-600">{{ quick.lines.length }}</p><p class="text-[11px] text-j-sub">Total Lines</p></div>
               </div>
             </div>
             <div v-if="quick.lines.length" class="space-y-2">
-              <p class="text-sm font-medium text-grey-700">Cable Requirements</p>
+              <p class="text-sm font-medium text-j-ink">Cable Requirements</p>
               <div class="border rounded-xxs divide-y">
                 <div v-for="l in quick.lines" :key="l.line" class="p-2.5 flex justify-between items-center text-sm">
-                  <span class="text-grey-600">Line {{ l.line }}</span>
+                  <span class="text-j-sub">Line {{ l.line }}</span>
                   <div class="flex items-center gap-3">
-                    <span class="text-grey-500 text-xs">{{ l.odp }} ODP → ODC {{ l.odc }}</span>
-                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{{ l.cable }}</span>
+                    <span class="text-j-sub text-xs">{{ l.odp }} ODP → ODC {{ l.odc }}</span>
+                    <span class="px-2 py-1 bg-j-cyan/10 text-j-blue rounded text-xs font-medium">{{ l.cable }}</span>
                   </div>
                 </div>
               </div>
             </div>
             <div class="border rounded-xs">
               <button class="w-full flex items-center justify-between p-3 text-sm font-medium" @click="showParams = !showParams">
-                <span class="flex items-center gap-2"><UIcon name="i-heroicons-adjustments-horizontal" class="w-4 h-4 text-brand-500" /> Design Parameters (standar JLM)</span>
+                <span class="flex items-center gap-2"><UIcon name="i-heroicons-adjustments-horizontal" class="w-4 h-4 text-j-cyan" /> Design Parameters (standar JLM)</span>
                 <UIcon name="i-heroicons-chevron-down" class="w-4 h-4" :class="showParams ? 'rotate-180' : ''" />
               </button>
               <div v-show="showParams" class="p-3 pt-0 grid grid-cols-2 gap-3">
@@ -287,37 +294,37 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
 
         <!-- 4 -->
         <div v-if="step === 4" class="space-y-3">
-          <p class="text-sm text-grey-500">Choose where the network starts. Leave the default to use the nearest JLM POP.</p>
-          <div class="rounded-xxs border" :class="oltMode === 'site' ? 'bg-brand-50 border-brand-500' : 'border-grey-200'">
+          <p class="text-sm text-j-sub">Tentukan titik awal jaringan. Default memakai POP / OLT JLM terdekat.</p>
+          <div class="rounded-xxs border" :class="oltMode === 'site' ? 'bg-j-bg border-j-cyan' : 'border-j-line'">
             <button class="w-full text-left px-3 py-2.5" @click="oltMode = 'site'">
-              <div class="flex items-center gap-2"><UIcon name="i-heroicons-sparkles" class="w-4 h-4" :class="oltMode === 'site' ? 'text-brand-600' : 'text-grey-400'" /><span class="text-sm font-medium">Use Site (Default)</span></div>
-              <p class="text-xs text-grey-500 mt-0.5 ml-6">Gunakan POP / OLT existing JLM terdekat.</p>
+              <div class="flex items-center gap-2"><UIcon name="i-heroicons-sparkles" class="w-4 h-4" :class="oltMode === 'site' ? 'text-j-cyan' : 'text-j-sub'" /><span class="text-sm font-medium">POP JLM terdekat (default)</span></div>
+              <p class="text-xs text-j-sub mt-0.5 ml-6">Gunakan POP / OLT existing JLM terdekat.</p>
             </button>
             <div v-if="oltMode === 'site'" class="px-3 pb-3"><USelect v-model="sitePop" size="sm" :options="JLM_POPS.map((p) => ({ label: `${p.name} (${p.olt})`, value: p.code }))" /></div>
           </div>
-          <div class="rounded-xxs border" :class="oltMode === 'input' ? 'bg-brand-50 border-brand-500' : 'border-grey-200'">
+          <div class="rounded-xxs border" :class="oltMode === 'input' ? 'bg-j-bg border-j-cyan' : 'border-j-line'">
             <button class="w-full text-left px-3 py-2.5" @click="oltMode = 'input'">
-              <div class="flex items-center gap-2"><UIcon name="i-heroicons-map-pin" class="w-4 h-4" :class="oltMode === 'input' ? 'text-brand-600' : 'text-grey-400'" /><span class="text-sm font-medium">Select on Map</span></div>
-              <p class="text-xs text-grey-500 mt-0.5 ml-6">Tentukan titik OLT baru di peta.</p>
+              <div class="flex items-center gap-2"><UIcon name="i-heroicons-map-pin" class="w-4 h-4" :class="oltMode === 'input' ? 'text-j-cyan' : 'text-j-sub'" /><span class="text-sm font-medium">Pilih titik di peta</span></div>
+              <p class="text-xs text-j-sub mt-0.5 ml-6">Tentukan titik OLT baru di peta.</p>
             </button>
             <div v-if="oltMode === 'input'" class="px-3 pb-3 space-y-2">
               <UButton block size="sm" variant="soft" icon="i-heroicons-pencil-square" @click="$emit('requestOlt')">{{ pickedOlt ? "Edit Point on Map" : "Pick Point on Map" }}</UButton>
               <div v-if="pickedOlt" class="bg-green-50 border border-green-200 rounded-xxs p-2 text-xs text-green-700">Point 1: {{ pickedOlt[1].toFixed(5) }}, {{ pickedOlt[0].toFixed(5) }}</div>
             </div>
           </div>
-          <div class="rounded-xxs border" :class="oltMode === 'auto' ? 'bg-brand-50 border-brand-500' : 'border-grey-200'">
+          <div class="rounded-xxs border" :class="oltMode === 'auto' ? 'bg-j-bg border-j-cyan' : 'border-j-line'">
             <button class="w-full text-left px-3 py-2.5" @click="oltMode = 'auto'">
-              <div class="flex items-center gap-2"><UIcon name="i-heroicons-cpu-chip" class="w-4 h-4" :class="oltMode === 'auto' ? 'text-brand-600' : 'text-grey-400'" /><span class="text-sm font-medium">Auto (Bottom-up)</span></div>
-              <p class="text-xs text-grey-500 mt-0.5 ml-6">Sistem menentukan lokasi OLT berdasarkan sebaran rumah & ODC.</p>
+              <div class="flex items-center gap-2"><UIcon name="i-heroicons-cpu-chip" class="w-4 h-4" :class="oltMode === 'auto' ? 'text-j-cyan' : 'text-j-sub'" /><span class="text-sm font-medium">Otomatis (bottom-up)</span></div>
+              <p class="text-xs text-j-sub mt-0.5 ml-6">Sistem menentukan lokasi OLT berdasarkan sebaran rumah & ODC.</p>
             </button>
           </div>
         </div>
 
         <!-- 5 -->
         <div v-if="step === 5" class="space-y-4">
-          <div class="bg-grey-100 border border-grey-200 rounded-xxs p-4">
-            <div class="flex items-center gap-2"><UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 text-brand-500" /><span class="text-sm font-medium">Ready to Generate</span></div>
-            <p class="text-xs text-grey-600">Review the summary and start network generation.</p>
+          <div class="bg-j-bg border border-j-line rounded-xxs p-4">
+            <div class="flex items-center gap-2"><UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 text-j-cyan" /><span class="text-sm font-medium">Ready to Generate</span></div>
+            <p class="text-xs text-j-sub">Review the summary and start network generation.</p>
           </div>
           <div class="border rounded-xxs divide-y text-sm">
             <div v-for="row in [
@@ -328,7 +335,7 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
               ['ODC Needed', quick?.odc],
               ['Standar', `ODP ${params.odpCapacity} rmh / ${params.odpMaxDist} m · tiang ${params.poleSpacing} m`],
               ['Start Point', oltLabel],
-            ]" :key="row[0]" class="p-3 flex justify-between gap-4"><span class="text-grey-500">{{ row[0] }}</span><span class="text-grey-800 font-medium text-right">{{ row[1] }}</span></div>
+            ]" :key="row[0]" class="p-3 flex justify-between gap-4"><span class="text-j-sub">{{ row[0] }}</span><span class="text-j-ink font-medium text-right">{{ row[1] }}</span></div>
           </div>
         </div>
       </div>
@@ -337,7 +344,7 @@ const title = computed(() => ["Create New Project", "Select Area of Interest", "
         <UButton v-if="step === 1" color="gray" variant="ghost" @click="$emit('close')">Cancel</UButton>
         <UButton v-else color="gray" variant="ghost" :disabled="analyzing" @click="step--">Back</UButton>
         <UButton v-if="step < 5" :disabled="!canNext" trailing-icon="i-heroicons-arrow-right" @click="step++">Next</UButton>
-        <UButton v-else color="green" icon="i-heroicons-cpu-chip" @click="generate">Generate Network</UButton>
+        <UButton v-else color="green" icon="i-heroicons-cpu-chip" @click="generate">Proses Desain</UButton>
       </div>
     </div>
   </div>

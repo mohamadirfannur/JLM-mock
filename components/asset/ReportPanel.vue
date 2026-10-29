@@ -62,8 +62,8 @@ function exportReport() {
 <template>
   <UiSidePanel title="Asset Summary" subtitle="Laporan inventaris aset OSP JLM" @close="$emit('close')">
     <template #actions><UButton size="2xs" color="gray" variant="ghost" icon="i-heroicons-arrow-down-tray" title="Export laporan Excel" @click="exportReport" /></template>
-    <div class="flex bg-grey-100 rounded-xxs p-1 mb-3">
-      <button v-for="t in [{ k: 'ringkasan', l: 'Ringkasan' }, { k: 'kapasitas', l: 'Kapasitas ODP/ODC' }, { k: 'material', l: 'Material Terpasang' }]" :key="t.k" class="flex-1 py-1.5 text-xs rounded-xxs" :class="tab === t.k ? 'bg-white shadow-sm' : 'text-grey-600'" @click="tab = t.k as any">{{ t.l }}</button>
+    <div class="flex bg-j-bg rounded-xxs p-1 mb-3">
+      <button v-for="t in [{ k: 'ringkasan', l: 'Ringkasan' }, { k: 'kapasitas', l: 'Kapasitas ODP/ODC' }, { k: 'material', l: 'Material Terpasang' }]" :key="t.k" class="flex-1 py-1.5 text-xs rounded-xxs" :class="tab === t.k ? 'bg-white shadow-sm' : 'text-j-sub'" @click="tab = t.k as any">{{ t.l }}</button>
     </div>
     <template v-if="tab === 'ringkasan'">
       <div class="grid grid-cols-3 gap-2 mb-3">
@@ -78,7 +78,7 @@ function exportReport() {
       <p class="text-sm font-semibold mt-5 mb-2">Aset per Jenis</p>
       <div class="grid grid-cols-2 gap-2">
         <div v-for="[k, v] in assetByType" :key="k" class="flex justify-between border rounded-xxs p-2 text-xs">
-          <span>{{ k }} <span class="text-[10px] text-grey-400">{{ v.cat }}</span></span><b>{{ fmt(v.n) }}</b>
+          <span>{{ k }} <span class="text-[10px] text-j-sub">{{ v.cat }}</span></span><b>{{ fmt(v.n) }}</b>
         </div>
       </div>
       <div v-if="plannedProjects.length" class="mt-5">
@@ -99,14 +99,14 @@ function exportReport() {
       <div class="space-y-1">
         <button v-for="x in capacity.slice(0, 60)" :key="x.a.id" class="w-full p-2 border rounded-xxs hover:border-blue-500 text-left" @click="$emit('select', x.a.siteId)">
           <div class="flex justify-between text-xs"><span class="font-medium">{{ x.a.code }}</span><span>{{ x.used }}/{{ x.total }} · {{ x.pct }}%</span></div>
-          <div class="h-1.5 bg-grey-100 rounded-full mt-1 overflow-hidden"><div class="h-full rounded-full" :style="{ width: x.pct + '%', background: x.pct >= 80 ? '#C0353E' : x.pct >= 50 ? '#F59E0B' : '#3672F9' }" /></div>
+          <div class="h-1.5 bg-j-bg rounded-full mt-1 overflow-hidden"><div class="h-full rounded-full" :style="{ width: x.pct + '%', background: x.pct >= 80 ? '#C0353E' : x.pct >= 50 ? '#F59E0B' : '#3672F9' }" /></div>
         </button>
       </div>
     </template>
     <template v-if="tab === 'material'">
-      <p class="text-xs text-grey-600 mb-2">Actual material & segmen kabel terpasang di lapangan (kebutuhan laporan JLM).</p>
+      <p class="text-xs text-j-sub mb-2">Actual material & segmen kabel terpasang di lapangan (kebutuhan laporan JLM).</p>
       <div class="border rounded-xxs overflow-hidden text-xs">
-        <div class="grid grid-cols-[1.4fr_0.6fr_1fr_1fr] bg-grey-200 font-semibold p-2"><span>Kabel</span><span class="text-center">Segmen</span><span class="text-right">Terpasang</span><span class="text-right">Planned</span></div>
+        <div class="grid grid-cols-[1.4fr_0.6fr_1fr_1fr] bg-j-soft font-semibold p-2"><span>Kabel</span><span class="text-center">Segmen</span><span class="text-right">Terpasang</span><span class="text-right">Planned</span></div>
         <div v-for="[k, v] in material" :key="k" class="grid grid-cols-[1.4fr_0.6fr_1fr_1fr] p-2 border-t">
           <span class="flex items-center gap-1.5"><span class="w-3 h-1 rounded-full" :style="{ background: CABLE_COLORS[k.replace(/ \d+C$/, '')] }" />{{ k }}</span>
           <span class="text-center">{{ v.n }}</span><span class="text-right">{{ meters(v.inst) }}</span><span class="text-right text-yellow-700">{{ v.plan ? meters(v.plan) : "-" }}</span>
@@ -114,7 +114,7 @@ function exportReport() {
       </div>
       <p class="text-sm font-semibold mt-4 mb-2">Tiang per tipe</p>
       <div class="grid grid-cols-3 gap-2">
-        <div v-for="t in ['T7 1-Stage', 'T7 2-Stage', 'T9 2-Stage']" :key="t" class="border rounded-xxs p-2 text-center"><p class="text-sm font-bold text-brand-500">{{ fmt(poleTypes[t] || 0) }}</p><p class="text-[10px] text-grey-500">{{ t }}</p></div>
+        <div v-for="t in ['T7 1-Stage', 'T7 2-Stage', 'T9 2-Stage']" :key="t" class="border rounded-xxs p-2 text-center"><p class="text-sm font-bold text-j-cyan">{{ fmt(poleTypes[t] || 0) }}</p><p class="text-[10px] text-j-sub">{{ t }}</p></div>
       </div>
     </template>
   </UiSidePanel>

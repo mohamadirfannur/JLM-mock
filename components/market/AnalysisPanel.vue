@@ -20,22 +20,22 @@ const subs = computed(() => (r.value ? Math.round(r.value.uncovered * (pen.value
 const sorted = (o: Record<string, number>, order?: string[]) => (order ? order.filter((k) => o[k] !== undefined).map((k) => [k, o[k]] as [string, number]) : Object.entries(o).sort((x, y) => y[1] - x[1]));
 const PRICE_ORDER = ["< 500 jt", "500 jt – 1 M", "1 – 2 M", "2 – 3,5 M", "> 3,5 M"];
 const VA_ORDER = ["900 VA", "1300 VA", "2200 VA", "3500 VA", "5500 VA"];
-const gradeColor = computed(() => LEVEL_COLORS[r.value?.grade === "High" ? "High" : r.value?.grade || "Mid"]);
+const gradeColor = computed(() => ({ High: "#7B2FFF", Mid: "#00AACC", Low: "#F59E0B", "Very Low": "#61718B" } as Record<string, string>)[r.value?.grade || "Mid"]);
 </script>
 
 <template>
-  <UiSidePanel title="Analysis Result" subtitle="Hasil analisis AOI — jumlah rumah & potensi pasar" @close="$emit('close')">
+  <UiSidePanel title="Analisis Area" subtitle="Jumlah rumah & potensi pasar dalam AOI" @close="$emit('close')">
     <div v-if="!a || !r" class="py-16 text-center">
-      <div class="w-16 h-16 mx-auto bg-grey-100 rounded-full flex items-center justify-center mb-3"><UIcon name="i-heroicons-chart-pie" class="w-8 h-8 text-grey-400" /></div>
-      <p class="text-sm text-grey-700">No Market Analysis Data</p>
-      <p class="text-xs text-grey-500 mt-1">Gunakan <b>Analytic Tools → Digitize / Upload AOI</b> di toolbar bawah.</p>
+      <div class="w-16 h-16 mx-auto bg-j-bg rounded-full flex items-center justify-center mb-3"><UIcon name="i-heroicons-chart-pie" class="w-8 h-8 text-j-sub" /></div>
+      <p class="text-sm text-j-ink">Belum ada area dianalisis</p>
+      <p class="text-xs text-j-sub mt-1">Pilih RW / Cluster di <b>Filter Lokasi</b>, atau gambar / upload AOI dari toolbar peta.</p>
     </div>
     <div v-else class="space-y-4">
-      <div class="border border-grey-200 rounded-xs p-3">
+      <div class="border border-j-line rounded-xs p-3">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0">
-            <p class="text-sm font-semibold text-grey-900 truncate">{{ a.name }}</p>
-            <p class="text-[11px] text-grey-500">{{ a.source }} · {{ a.createdAt }}</p>
+            <p class="text-sm font-semibold text-j-ink truncate">{{ a.name }}</p>
+            <p class="text-[11px] text-j-sub">{{ a.source }} · {{ a.createdAt }}</p>
           </div>
           <div class="flex items-center gap-1 shrink-0">
             <UButton size="2xs" color="gray" variant="ghost" icon="i-heroicons-magnifying-glass-plus" title="Zoom" @click="$emit('zoom', a.feature)" />
@@ -53,12 +53,12 @@ const gradeColor = computed(() => LEVEL_COLORS[r.value?.grade === "High" ? "High
             <UButton size="2xs" color="red" variant="ghost" icon="i-heroicons-trash" title="Hapus" @click="$emit('remove', a.id)" />
           </div>
         </div>
-        <div class="mt-3 flex items-center gap-3 rounded-xxs p-3" :style="{ background: gradeColor + '22' }">
+        <div class="mt-3 flex items-center gap-3 rounded-[8px] p-3" :style="{ background: gradeColor + '14' }">
           <div class="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shrink-0" :style="{ background: gradeColor }">{{ r.score }}</div>
           <div>
-            <p class="text-[11px] uppercase text-grey-600 font-semibold">Market Potential Score</p>
-            <p class="text-base font-bold text-grey-900">{{ r.grade }} Potential</p>
-            <p class="text-[11px] text-grey-600">Kepadatan {{ fmt(r.density, 1) }} bangunan/ha · {{ 100 - r.competitorPct }}% rumah belum terlayani ISP</p>
+            <p class="text-[11px] uppercase text-j-sub font-semibold">Market Potential Score</p>
+            <p class="text-base font-bold text-j-ink">{{ r.grade }} Potential</p>
+            <p class="text-[11px] text-j-sub">Kepadatan {{ fmt(r.density, 1) }} bangunan/ha · {{ 100 - r.competitorPct }}% rumah belum terlayani ISP</p>
           </div>
         </div>
       </div>
@@ -72,7 +72,7 @@ const gradeColor = computed(() => LEVEL_COLORS[r.value?.grade === "High" ? "High
         <UiStat label="POI di AOI" :value="fmt(r.poiTotal)" />
       </div>
 
-      <div class="border border-grey-200 rounded-xs p-3 space-y-3">
+      <div class="border border-j-line rounded-xs p-3 space-y-3">
         <p class="text-sm font-semibold">Estimasi Pelanggan & Revenue</p>
         <div class="grid grid-cols-2 gap-3">
           <UFormGroup label="Take-up rate" size="xs">
@@ -97,7 +97,7 @@ const gradeColor = computed(() => LEVEL_COLORS[r.value?.grade === "High" ? "High
         <UiDonut :labels="sorted(r.byClass, ['A', 'B', 'C', 'D']).map((x) => CLASS_LABEL[x[0]])" :values="sorted(r.byClass, ['A', 'B', 'C', 'D']).map((x) => x[1])" :colors="sorted(r.byClass, ['A', 'B', 'C', 'D']).map((x) => CLASS_COLORS[x[0]])" :height="180" />
       </div>
       <div v-if="has('House Price')">
-        <p class="text-sm font-semibold mb-1">House Price <span class="text-grey-500 font-normal text-xs">(rata-rata {{ fmt(r.avgPrice) }} jt)</span></p>
+        <p class="text-sm font-semibold mb-1">House Price <span class="text-j-sub font-normal text-xs">(rata-rata {{ fmt(r.avgPrice) }} jt)</span></p>
         <UiBarChart :labels="sorted(r.byPrice, PRICE_ORDER).map((x) => x[0])" :values="sorted(r.byPrice, PRICE_ORDER).map((x) => x[1])" colors="#7C3AED" :height="170" />
       </div>
       <div v-if="has('Carport')">
@@ -124,12 +124,12 @@ const gradeColor = computed(() => LEVEL_COLORS[r.value?.grade === "High" ? "High
           <div v-for="[k, v] in sorted(r.byKelurahan)" :key="k" class="flex justify-between p-2">
             <span>{{ k }}</span><span class="font-medium">{{ fmt(v) }}</span>
           </div>
-          <div class="flex justify-between p-2 bg-grey-100 font-semibold"><span>Total</span><span>{{ fmt(r.totalBuildings) }}</span></div>
+          <div class="flex justify-between p-2 bg-j-bg font-semibold"><span>Total</span><span>{{ fmt(r.totalBuildings) }}</span></div>
         </div>
       </div>
     </div>
     <template v-if="a" #footer>
-      <UButton block color="primary" icon="i-heroicons-signal" class="justify-center" @click="$emit('ftth', a.id)">Design FTTH untuk AOI ini</UButton>
+      <button class="j-btn-grad w-full h-10" @click="$emit('ftth', a.id)"><UIcon name="i-lucide-zap" class="w-4 h-4" />Buat Desain FTTH untuk area ini</button>
     </template>
   </UiSidePanel>
 </template>

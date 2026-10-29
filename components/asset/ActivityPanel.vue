@@ -1,24 +1,21 @@
 <script setup lang="ts">
+defineProps<{ embedded?: boolean }>();
 defineEmits<{ (e: "close"): void }>();
 const store = useAssetStore();
-const ICON: Record<string, string> = { Create: "i-heroicons-plus-circle", Update: "i-heroicons-pencil-square", Move: "i-heroicons-arrows-pointing-out", Delete: "i-heroicons-trash", Import: "i-heroicons-arrow-down-tray", Sync: "i-heroicons-arrow-path" };
-const COL: Record<string, string> = { Create: "text-green-600", Update: "text-blue-600", Move: "text-purple-600", Delete: "text-red-600", Import: "text-grey-700", Sync: "text-orange-600" };
+const tab = ref("Semua");
+const TAG: Record<string, [string, string]> = { Create: ["Tambah Aset", "j-tag-cyan"], Update: ["Edit Aset", "j-tag-purple"], Move: ["Edit Lokasi", "j-tag-purple"], Delete: ["Hapus", "j-tag-red"], Import: ["Import", "j-tag-amber"], Sync: ["FTTH Sync", "j-tag-blue"] };
+const list = computed(() => store.activity.filter((a) => tab.value === "Semua" || (tab.value === "Import" && a.action === "Import") || (tab.value === "Edit Aset" && ["Update", "Move", "Create", "Delete"].includes(a.action)) || (tab.value === "Kabel" && /CBL|kabel|Kabel/.test(a.target + a.detail))));
 </script>
 <template>
-  <div class="flex flex-col h-full">
-    <div class="p-3 flex items-start justify-between">
-      <div><h2 class="text-md text-black">Activity Log</h2><p class="text-[10px] text-grey-700">Histori perubahan data aset</p></div>
-      <button class="text-grey-400 hover:text-grey-700" @click="$emit('close')"><UIcon name="i-heroicons-x-mark" class="w-4 h-4" /></button>
-    </div>
-    <div class="flex-1 overflow-y-auto thin-scrollbar px-3 pb-3 space-y-2">
-      <div v-if="!store.activity.length" class="text-xs text-grey-500 text-center py-8">No activities found</div>
-      <div v-for="a in store.activity" :key="a.id" class="flex gap-2 border-b border-grey-100 pb-2">
-        <UIcon :name="ICON[a.action]" class="w-4 h-4 mt-0.5 shrink-0" :class="COL[a.action]" />
-        <div class="min-w-0">
-          <p class="text-xs"><b>{{ a.action }}</b> · {{ a.target }}</p>
-          <p class="text-[11px] text-grey-600">{{ a.detail }}</p>
-          <p class="text-[10px] text-grey-400">{{ a.user }} · {{ a.at }}</p>
-        </div>
+  <div>
+    <div class="flex gap-1.5 mb-3"><button v-for="t in ['Semua', 'Import', 'Edit Aset', 'Kabel']" :key="t" class="j-chip !h-6 !px-2.5 !text-[11px]" :class="tab === t && 'j-chip-on'" @click="tab = t">{{ t }}</button></div>
+    <div class="space-y-2">
+      <div v-if="!list.length" class="text-[12px] text-j-sub text-center py-8">Belum ada aktivitas.</div>
+      <div v-for="a in list" :key="a.id" class="border border-j-line rounded-[10px] p-3">
+        <div class="flex items-center gap-2"><span :class="TAG[a.action][1]">{{ TAG[a.action][0] }}</span><span class="j-tag-teal">{{ a.action === "Delete" ? "Dihapus" : a.action === "Import" ? "Selesai" : "Updated" }}</span></div>
+        <p class="font-display font-bold text-[13px] mt-2 break-all">{{ a.target }}</p>
+        <p class="text-[12px] text-j-sub mt-0.5">{{ a.detail }}</p>
+        <p class="text-[11px] text-j-mute mt-1.5">{{ a.user }} · {{ a.at }}</p>
       </div>
     </div>
   </div>

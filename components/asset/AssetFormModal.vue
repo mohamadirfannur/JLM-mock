@@ -101,13 +101,13 @@ function save() {
       <div class="flex items-center justify-between p-4 border-b">
         <div>
           <h2 class="text-lg font-semibold">{{ asset ? "Edit Asset" : "Add Asset" }}</h2>
-          <p class="text-xs text-grey-500">Site point: <b>{{ site?.code }}</b> · {{ site?.type }}</p>
+          <p class="text-xs text-j-sub">Site point: <b>{{ site?.code }}</b> · {{ site?.type }}</p>
         </div>
         <button @click="$emit('close')"><UIcon name="i-heroicons-x-mark" class="w-5 h-5" /></button>
       </div>
       <div class="p-5 overflow-y-auto thin-scrollbar space-y-5">
         <section>
-          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-identification" class="text-brand-500" />Basic Information</p>
+          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-identification" class="text-j-cyan" />Basic Information</p>
           <div class="grid grid-cols-2 gap-3">
             <UFormGroup label="Kategori" size="sm"><USelect v-model="f.category" :options="['Pasif', 'Aktif']" /></UFormGroup>
             <UFormGroup label="Asset Type" size="sm" required><USelect v-model="f.type" :options="[...ASSET_TYPES[f.category]]" placeholder="Select asset type" /></UFormGroup>
@@ -121,16 +121,16 @@ function save() {
           </div>
         </section>
         <section>
-          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-map-pin" class="text-brand-500" />Location & Capacity</p>
+          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-map-pin" class="text-j-cyan" />Location & Capacity</p>
           <div class="grid grid-cols-3 gap-3">
             <UFormGroup label="Location Detail" size="sm" class="col-span-3"><UInput v-model="f.location" placeholder="mis. Tiang depan Blok C2 No. 10" /></UFormGroup>
             <UFormGroup label="Jumlah Port / Core" size="sm"><UInput v-model.number="f.portCount" type="number" min="0" /></UFormGroup>
             <UFormGroup label="Port Terpakai" size="sm"><UInput v-model.number="f.portUsed" type="number" min="0" :max="f.portCount" /></UFormGroup>
-            <div class="flex items-end pb-2 text-xs text-grey-600">Utilisasi {{ f.portCount ? Math.round((f.portUsed / f.portCount) * 100) : 0 }}%</div>
+            <div class="flex items-end pb-2 text-xs text-j-sub">Utilisasi {{ f.portCount ? Math.round((f.portUsed / f.portCount) * 100) : 0 }}%</div>
           </div>
         </section>
         <section>
-          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-calendar-days" class="text-brand-500" />Dates & Maintenance</p>
+          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-calendar-days" class="text-j-cyan" />Dates & Maintenance</p>
           <div class="grid grid-cols-3 gap-3">
             <UFormGroup label="Date of Install" size="sm"><UInput v-model="f.installDate" type="date" /></UFormGroup>
             <UFormGroup label="Date of Purchase" size="sm"><UInput v-model="f.purchaseDate" type="date" /></UFormGroup>
@@ -140,14 +140,14 @@ function save() {
           </div>
         </section>
         <section>
-          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-paper-clip" class="text-brand-500" />Attachments</p>
+          <p class="text-sm font-semibold mb-2 flex items-center gap-2"><UIcon name="i-heroicons-paper-clip" class="text-j-cyan" />Attachments</p>
           <div class="flex gap-2 items-center">
             <UInput v-model="f.attLabel" size="sm" placeholder="e.g., Photo, User Manual" class="flex-1" />
-            <label class="cursor-pointer"><span class="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-xs bg-brand-500 text-white"><UIcon name="i-heroicons-plus" />Add Attachment</span><input type="file" class="hidden" @change="addAttachment" /></label>
+            <label class="cursor-pointer"><span class="inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-xs bg-j-bg0 text-white"><UIcon name="i-heroicons-plus" />Add Attachment</span><input type="file" class="hidden" @change="addAttachment" /></label>
           </div>
           <div v-if="f.attachments.length" class="mt-2 space-y-1">
-            <div v-for="(a, i) in f.attachments" :key="i" class="flex items-center justify-between text-xs bg-grey-100 rounded-xxs p-2">
-              <span><UIcon name="i-heroicons-document" class="mr-1" />{{ a.label }} · <span class="text-grey-500">{{ a.file }}</span></span>
+            <div v-for="(a, i) in f.attachments" :key="i" class="flex items-center justify-between text-xs bg-j-bg rounded-xxs p-2">
+              <span><UIcon name="i-heroicons-document" class="mr-1" />{{ a.label }} · <span class="text-j-sub">{{ a.file }}</span></span>
               <button class="text-red-500" @click="f.attachments.splice(i, 1)"><UIcon name="i-heroicons-trash" /></button>
             </div>
           </div>

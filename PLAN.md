@@ -75,7 +75,7 @@ Catatan MoM: **aset point harus bisa dihapus** (bukan cuma dipindah) — wajib a
 - [x] Batch 2 — Asset Management (CRUD + pindah/hapus + kabel + tiang + import + laporan + activity log)
 - [x] Batch 3 — Market Potential (digitize/upload/buffer/select, summary POI/AOI/Footprint, revenue)
 - [x] Integrasi Market → FTTH → Asset (Planned → As-built)
-- [ ] Batch 4 — Polish sesuai screen Figma (butuh token Figma dengan scope file_content:read)
+- [x] Batch 4 — Redesain penuh mengikuti Figma JLM - Map Planner (Light): navbar + sidebar, Dashboard, Proyek, Filter Lokasi, Map Content, Processing Queue, BOQ & BOM, Pengguna, Pengaturan
 
 Catatan: modul tampil di halaman masing-masing (`/map/market-potential`, `/map/ftth`, `/map/asset-management`) mengikuti pola surge.
 

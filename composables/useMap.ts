@@ -10,11 +10,11 @@ export type BasemapId = "hybrid" | "satellite" | "streets" | "light" | "topo";
 export const BASEMAPS: { id: BasemapId; label: string; path: string; ext: string; thumb: string }[] = [
   { id: "hybrid", label: "Satellite Hybrid", path: "maps/hybrid", ext: "jpg", thumb: "#2b4a3a" },
   { id: "satellite", label: "Satellite", path: "maps/satellite", ext: "jpg", thumb: "#3d5a3d" },
-  { id: "streets", label: "Streets", path: "maps/streets-v2", ext: "png", thumb: "#f2efe9" },
-  { id: "light", label: "Light", path: "maps/dataviz", ext: "png", thumb: "#f5f5f5" },
+  { id: "streets", label: "Streets", path: "maps/bright-v2", ext: "png", thumb: "#f2efe9" },
+  { id: "light", label: "Light", path: "maps/streets-v2-light", ext: "png", thumb: "#f5f5f5" },
   { id: "topo", label: "Topo", path: "maps/topo-v2", ext: "png", thumb: "#e8eedd" },
 ];
-const basemap = ref<BasemapId>("hybrid");
+const basemap = ref<BasemapId>("streets");
 
 export function basemapTiles(id: BasemapId) {
   const key = useRuntimeConfig().public.maptilerKey;

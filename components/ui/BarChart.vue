@@ -8,8 +8,8 @@ const options = computed(() => ({
   indexAxis: props.horizontal ? "y" : "x",
   plugins: { legend: { display: false }, datalabels: { display: false } },
   scales: {
-    x: { grid: { display: !!props.horizontal, color: "#E4E3E4" }, ticks: { color: "#4C4B4C" } },
-    y: { grid: { display: !props.horizontal, color: "#1E1D1E" }, ticks: { color: "#4C4B4C" } },
+    x: { grid: { display: !!props.horizontal, color: "#E4E3E4" }, ticks: { color: "#51625E" } },
+    y: { grid: { display: !props.horizontal, color: "#E1E8E6" }, ticks: { color: "#51625E" } },
   },
 }));
 </script>

@@ -18,5 +18,6 @@ export const ASSET_TYPES = {
 export const SITE_TYPES = ["POP", "ODC", "ODP", "Pole", "JC", "Customer", "Tower"] as const;
 export type SiteType = (typeof SITE_TYPES)[number];
 
-export const SITE_COLORS: Record<string, string> = { POP: "#C0353E", ODC: "#7C3AED", ODP: "#3672F9", Pole: "#949495", JC: "#F59E0B", Customer: "#00D075", Tower: "#011641" };
-export const CABLE_COLORS: Record<string, string> = { Backbone: "#C0353E", Feeder: "#F97316", "Sub Feeder": "#F59E0B", Distribusi: "#00D075", Drop: "#06B6D4" };
+export const SITE_COLORS: Record<string, string> = { POP: "#00D4FF", ODC: "#7B2FFF", ODP: "#00D4FF", Pole: "#F59E0B", JC: "#7B2FFF", Customer: "#61718B", Tower: "#0E66C4" };
+export const CABLE_COLORS: Record<string, string> = { Backbone: "#0E66C4", Feeder: "#00D4FF", "Sub Feeder": "#3ECFD2", Distribusi: "#A78BFA", Drop: "#B8C4C1" };
+export const SITE_LABEL: Record<string, string> = { POP: "OLT / POP", ODC: "ODC", ODP: "ODP", Pole: "POLE / Tiang", JC: "OTB / SS / JC", Customer: "ONT / Pelanggan", Tower: "Tower" };

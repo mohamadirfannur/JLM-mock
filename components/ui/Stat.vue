@@ -2,8 +2,8 @@
 defineProps<{ label: string; value: string | number; unit?: string; tone?: "brand" | "green" | "white" }>();
 </script>
 <template>
-  <div class="rounded-xxs p-3 text-center" :class="tone === 'white' ? 'bg-white border border-grey-200' : tone === 'green' ? 'bg-green-50' : 'bg-brand-50'">
-    <p class="text-[11px] uppercase text-grey-600 font-semibold leading-tight">{{ label }}</p>
-    <p class="text-xl font-bold text-[#1a237e] mt-0.5">{{ value }} <span v-if="unit" class="text-xs text-grey-500 font-semibold">{{ unit }}</span></p>
+  <div class="rounded-[8px] p-3" :class="tone === 'white' ? 'bg-white border border-j-line' : tone === 'green' ? 'bg-j-aqua/[0.10]' : 'bg-j-bg border border-j-line'">
+    <p class="text-[10px] uppercase tracking-wide text-j-sub font-display font-bold leading-tight">{{ label }}</p>
+    <p class="font-display font-bold text-[18px] text-j-ink mt-1 leading-none">{{ value }} <span v-if="unit" class="text-[11px] text-j-sub font-sans font-normal">{{ unit }}</span></p>
   </div>
 </template>

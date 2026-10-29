@@ -1,11 +1,11 @@
 import * as turf from "@turf/turf";
 
-export const CLASS_COLORS: Record<string, string> = { A: "#7C3AED", B: "#3672F9", C: "#00D075", D: "#F59E0B", "-": "#949495" };
+export const CLASS_COLORS: Record<string, string> = { A: "#7B2FFF", B: "#0E66C4", C: "#00D4FF", D: "#F59E0B", "-": "#B8C4C1" };
 export const CLASS_LABEL: Record<string, string> = { A: "Kelas A (>250 m²)", B: "Kelas B (120–250 m²)", C: "Kelas C (60–120 m²)", D: "Kelas D (<60 m²)" };
 export const TYPE_LABEL: Record<string, string> = { res: "Rumah Tinggal", com: "Ruko / Komersial", off: "Perkantoran", edu: "Pendidikan", ibd: "Tempat Ibadah", kes: "Kesehatan", ind: "Industri / Gudang", con: "Konstruksi" };
-export const ISP_COLORS: Record<string, string> = { "": "#00D075", IndiHome: "#C0353E", MyRepublic: "#7C3AED", Biznet: "#3672F9", "First Media": "#F59E0B", CBN: "#06B6D4" };
-export const LEVEL_COLORS: Record<string, string> = { "Very Low": "#E4E3E4", Low: "#FDE68A", Mid: "#FBBF24", High: "#F97316", "Very High": "#C0353E" };
-export const POI_COLORS: Record<string, string> = { Sekolah: "#3672F9", Kesehatan: "#C0353E", Ibadah: "#00A05B", Komersial: "#F59E0B", Kuliner: "#F97316", Keuangan: "#7C3AED", Perkantoran: "#011641", Publik: "#79797B" };
+export const ISP_COLORS: Record<string, string> = { "": "#3ECFD2", IndiHome: "#EF4444", MyRepublic: "#7B2FFF", Biznet: "#0E66C4", "First Media": "#F59E0B", CBN: "#61718B" };
+export const LEVEL_COLORS: Record<string, string> = { "Very Low": "#EFF5FA", Low: "#B3F0FF", Mid: "#4DE1FF", High: "#00AACC", "Very High": "#7B2FFF" };
+export const POI_COLORS: Record<string, string> = { Sekolah: "#0E66C4", Kesehatan: "#EF4444", Ibadah: "#005952", Komersial: "#F59E0B", Kuliner: "#FB923C", Keuangan: "#7B2FFF", Perkantoran: "#10201D", Publik: "#61718B" };
 
 export const ANALYSIS_LAYERS = ["House Class", "House Price", "Carport", "Energy", "Road Type", "Competitor ISP"] as const;
 

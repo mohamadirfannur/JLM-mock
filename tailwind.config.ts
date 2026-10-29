@@ -1,7 +1,15 @@
 import type { Config } from "tailwindcss";
 
 // Palette carried over from the Surge / Cartogram UI (light theme).
+// JLM brand (Figma: JLM - Map Planner / Brand Guideline)
+const jcyan = { 50: "#E6FBFF", 100: "#CCF6FF", 200: "#99EEFF", 300: "#66E5FF", 400: "#33DDFF", 500: "#00D4FF", 600: "#00AACC", 700: "#007F99", 800: "#005566", 900: "#002A33", 950: "#00151A" };
+const j = {
+  ink: "#10201D", sub: "#51625E", mute: "#748D88", line: "#E1E8E6", bg: "#F5F9F8", soft: "#EFF5FA",
+  cyan: "#00D4FF", purple: "#7B2FFF", teal: "#005952", blue: "#0E66C4", amber: "#F59E0B", red: "#EF4444", slate: "#61718B", aqua: "#3ECFD2", navy: "#001849",
+};
 const colors = {
+  jcyan,
+  j,
   current: "currentColor",
   transparent: "transparent",
   white: "#FFFFFF",
@@ -58,7 +66,7 @@ export default <Partial<Config>>{
     extend: {
       colors: { ...colors, primary },
       fontSize: { "2xs": ["10px", "16px"] },
-      fontFamily: { raleway: ["Raleway", "sans-serif"], sans: ["Raleway", "sans-serif"] },
+      fontFamily: { display: ["\"Exo 2\"", "Inter", "sans-serif"], sans: ["Inter", "sans-serif"] },
     },
   },
 };
