@@ -6,11 +6,13 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   modules: ["@nuxt/ui", "@pinia/nuxt", "nuxt-svgo"],
   colorMode: { preference: "light", fallback: "light" },
+  tailwindcss: { exposeConfig: false, viewer: false },
+  icon: { serverBundle: "local", clientBundle: { scan: true, sizeLimitKb: 512 } },
   svgo: { autoImportPath: false, defaultImport: "component" },
   pinia: { storesDirs: ["./stores/**"] },
   runtimeConfig: {
     public: {
-      maptilerKey: process.env.NUXT_PUBLIC_MAPTILER_KEY || "LXay2B4qogCZHW7GkRMl",
+      maptilerKey: process.env.NUXT_PUBLIC_MAPTILER_KEY || "",
     },
   },
   app: {

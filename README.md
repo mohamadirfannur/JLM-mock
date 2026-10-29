@@ -21,9 +21,9 @@ Menu ☰ → **Reset Demo Data** untuk mengulang dari awal.
 ```bash
 pnpm install
 pnpm dev          # http://localhost:3000
-pnpm build        # Vercel: framework preset Nuxt, tanpa env var
+pnpm build        # Vercel: preset Nuxt + env NUXT_PUBLIC_MAPTILER_KEY
 ```
-MapTiler key ada di `nuxt.config.ts` (bisa di-override `NUXT_PUBLIC_MAPTILER_KEY`).
+MapTiler key: copy `.env.example` ke `.env` dan isi `NUXT_PUBLIC_MAPTILER_KEY`. Di Vercel tambahkan env var yang sama (Settings → Environment Variables).
 
 Data area Gedebage–Rancasari, Bandung dibangun dari OpenStreetMap (jalan, bangunan, POI) dengan atribut sintetis:
 `node scripts/build-data.mjs <folder raw OSM>` → `public/data/*`. Lihat `PLAN.md` untuk standar desain JLM yang dipakai.

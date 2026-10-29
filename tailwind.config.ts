@@ -44,6 +44,11 @@ const colors = {
   },
 };
 
+// Nuxt UI "primary" (mapped to brand via app.config) — declared explicitly so dev & build behave the same.
+const v = (k: string) => `rgb(var(--color-primary-${k}) / <alpha-value>)`;
+const primary: Record<string, string> = { DEFAULT: v("DEFAULT") };
+[50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].forEach((n) => (primary[n] = v(String(n))));
+
 export default <Partial<Config>>{
   theme: {
     borderRadius: {
@@ -51,7 +56,7 @@ export default <Partial<Config>>{
       xl: "24px", xxl: "32px", full: "9999px", DEFAULT: "4px",
     },
     extend: {
-      colors,
+      colors: { ...colors, primary },
       fontSize: { "2xs": ["10px", "16px"] },
       fontFamily: { raleway: ["Raleway", "sans-serif"], sans: ["Raleway", "sans-serif"] },
     },
