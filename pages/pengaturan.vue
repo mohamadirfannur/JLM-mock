@@ -20,7 +20,7 @@ function resetAll() {
   try {
     Object.keys(localStorage).filter((k) => k.startsWith("jlm-") && k !== "jlm-auth").forEach((k) => localStorage.removeItem(k));
   } catch {}
-  window.location.href = "/dashboard";
+  window.location.href = "/home";
 }
 const integrations = [
   { n: "Sistem Billing", d: "Sinkronisasi pelanggan aktif per ODP", s: "Belum terhubung" },

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import * as turf from "@turf/turf";
 import { analyzeAoi, ANALYSIS_LAYERS, CLASS_COLORS, LEVEL_COLORS, POI_COLORS, ISP_COLORS } from "~/utils/marketAnalysis";
+import { routeAlongRoads, metersBetween } from "~/utils/ftthEngine";
+import { JLM_POPS } from "~/utils/jlmSites";
 import type { AreaSel } from "~/stores/area";
 
 definePageMeta({ layout: "app" });
@@ -11,14 +13,12 @@ const layers = useLayers();
 const draw = useDraw();
 const store = useMarketStore();
 const area = useAreaStore();
-const handoff = useHandoffStore();
 const toast = useToast();
 
 const EXTENT: [number, number, number, number] = [107.67, -6.975, 107.72, -6.935];
 const leftOpen = ref(true);
-const right = ref<"" | "analysis" | "summary" | "history">("analysis");
+const right = ref<"" | "analysis" | "summary" | "history" | "insight" | "routeRes">("analysis");
 const tool = ref<string | null>(null);
-const showSwitch = ref(false);
 const filterOpen = ref(false);
 const filterRef = ref<any>(null);
 const busy = ref(false);
@@ -52,6 +52,9 @@ async function onReady() {
   addLayer({ id: "aoi-bld", type: "line", source: "aoi-bld", paint: { "line-color": "#10201D", "line-width": 0.6, "line-opacity": 0.6 } });
   addLayer({ id: "aoi-label", type: "symbol", source: "aoi-results", layout: { "text-field": ["concat", ["get", "name"], "\n", ["get", "homes"], " rumah"], "text-font": ["Noto Sans Bold"], "text-size": 12 }, paint: { "text-color": "#7B2FFF", "text-halo-color": "#fff", "text-halo-width": 2.4 } });
   addLayer({ id: "mk-preview", type: "line", source: "mk-preview", paint: { "line-color": "#00D4FF", "line-width": 2.5 } });
+  setData("mk-insight", EMPTY_FC);
+  addLayer({ id: "mk-route", type: "line", source: "mk-insight", filter: ["==", "$type", "LineString"], layout: { "line-cap": "round" }, paint: { "line-color": "#7B2FFF", "line-width": 3, "line-opacity": 0.85 } });
+  addLayer({ id: "mk-poi", type: "circle", source: "mk-insight", filter: ["==", "$type", "Point"], paint: { "circle-radius": ["case", ["==", ["get", "k"], "hub"], 7, 6], "circle-color": ["case", ["==", ["get", "k"], "hub"], "#00D4FF", ["coalesce", ["get", "color"], "#7B2FFF"]], "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
 
   const R = (id: string, label: string, group: string, color: string, kind: any, mapLayers: string[], cat: any, extra: any = {}) => layers.register({ id, label, group, color, kind, mapLayers, visible: true, cat, ...extra });
   R("aoi", "AOI dianalisis", "Analisis", "#7B2FFF", "line", ["aoi-fill", "aoi-line", "aoi-label", "aoi-bld"], "Area");
@@ -195,6 +198,8 @@ const TOOLS = [
   { id: "select", icon: "i-lucide-mouse-pointer-click", tip: "Pilih RW / Kelurahan di peta" },
   { id: "spec", icon: "i-lucide-sliders-horizontal", tip: "Filter atribut rumah" },
   { id: "rank", icon: "i-lucide-trophy", tip: "Ranking potensi area" },
+  { id: "poi", icon: "i-lucide-map-pin", tip: "POI Insight" },
+  { id: "route", icon: "i-lucide-route", tip: "Route Analysis" },
 ];
 function openTool(id: string) {
   closeTool();
@@ -211,6 +216,58 @@ function closeTool() {
   setData("mk-preview", EMPTY_FC);
 }
 
+// ---------- POI insight (surge: Insight Analysis → POI Insight) ----------
+const pi = reactive({ src: "", cats: ["Sekolah", "Kesehatan", "Komersial", "Perkantoran"] as string[], name: "" });
+const activeInsight = ref<any>(null);
+function runPoi() {
+  const aoi = store.aois.find((a) => a.id === (pi.src || store.activeId));
+  if (!aoi) return toast.add({ title: "Pilih AOI dulu", description: "Hitung AOI terlebih dahulu (gambar / upload / pilih RW).", color: "orange" });
+  const pois = geo.poiIn(aoi.feature).filter((f: any) => pi.cats.includes(f.properties.cat));
+  const byCat: Record<string, number> = {};
+  pois.forEach((f: any) => (byCat[f.properties.cat] = (byCat[f.properties.cat] || 0) + 1));
+  const ins = { id: uid("poi"), name: pi.name || `POI Insight · ${aoi.name}`, aoi: aoi.name, aoiId: aoi.id, cats: [...pi.cats], total: pois.length, footprint: aoi.result.totalBuildings, byCat, pois: pois.map((f: any) => ({ name: f.properties.name, cat: f.properties.cat, sub: f.properties.sub, c: f.geometry.coordinates })), createdAt: nowStr(), routes: null as any };
+  store.insights.unshift(ins);
+  activeInsight.value = ins;
+  showInsight(ins);
+  right.value = "insight";
+  tool.value = null;
+}
+function showInsight(ins: any) {
+  setData("mk-insight", { type: "FeatureCollection", features: [...(ins.routes?.list || []).map((r: any) => turf.lineString(r.coords)), ...ins.pois.map((p: any) => turf.point(p.c, { color: POI_COLORS[p.cat] })), ...(ins.routes?.list || []).map((r: any) => turf.point(r.hubC, { k: "hub" }))] });
+  const a = store.aois.find((x) => x.id === ins.aoiId);
+  if (a) fitTo(turf.bbox(a.feature) as any, 120);
+}
+function exportInsight(ins: any, kind: string) {
+  const base = ins.name.replace(/[^A-Za-z0-9]+/g, "_");
+  if (kind === "xlsx") exportXLSX(`${base}.xlsx`, { POI: ins.pois.map((p: any) => ({ Nama: p.name, Kategori: p.cat, Jenis: p.sub, Lat: p.c[1], Lng: p.c[0] })), ...(ins.routes ? { Rute: ins.routes.list.map((r: any) => ({ POI: r.poi, Kategori: r.cat, "Titik jaringan": r.hub, "Jarak rute (m)": r.len })) } : {}) });
+  else download(`${base}.kml`, toKML(ins.name, [{ name: "POI", color: "purple", features: ins.pois.map((p: any) => turf.point(p.c, { name: p.name, cat: p.cat })) }, ...(ins.routes ? [{ name: "Rute", color: "blue", features: ins.routes.list.map((r: any) => turf.lineString(r.coords, { name: `${r.poi} → ${r.hub}` })) }] : [])]), "application/vnd.google-earth.kml+xml");
+}
+
+// ---------- route analysis (surge: Route Analysis from POI insight) ----------
+const ra = reactive({ ref: "", busy: false });
+const asset = useAssetStore();
+async function runRoutes() {
+  const ins = store.insights.find((x) => x.id === ra.ref);
+  if (!ins) return;
+  ra.busy = true;
+  await new Promise((r) => setTimeout(r, 50));
+  const hubs = [...JLM_POPS.map((p) => ({ code: p.code, c: p.coord })), ...asset.sites.filter((x) => x.status === "Installed" && (x.type === "ODC" || x.type === "ODP")).map((x) => ({ code: x.code, c: x.coord }))];
+  const list = ins.pois.slice(0, 30).map((p: any) => {
+    const h = [...hubs].sort((a, b) => metersBetween(a.c, p.c) - metersBetween(b.c, p.c))[0];
+    const roads = geo.roadsNear(turf.buffer(turf.lineString([p.c, h.c]), 300, { units: "meters" })!, 150);
+    const r = routeAlongRoads(roads, p.c, h.c);
+    return { poi: p.name, cat: p.cat, hub: h.code, hubC: h.c, len: Math.round(r.length), coords: r.coords };
+  });
+  const total = list.reduce((a: number, r: any) => a + r.len, 0);
+  ins.routes = { list, total, avg: list.length ? Math.round(total / list.length) : 0, near: list.filter((r: any) => r.len <= 250).length, createdAt: nowStr() };
+  activeInsight.value = ins;
+  ra.busy = false;
+  showInsight(ins);
+  right.value = "routeRes";
+  tool.value = null;
+  toast.add({ title: "Route analysis selesai", description: `${list.length} rute · total ${fmt(total)} m ke jaringan JLM terdekat`, icon: "i-lucide-circle-check-big", color: "green" });
+}
+
 // ---------- stats ----------
 const stat = computed(() => {
   const ids = store.aois.filter((a) => area.areas.some((x) => x.name === a.name) || a.id === store.activeId);
@@ -219,12 +276,6 @@ const stat = computed(() => {
   return { n: list.length, homes: s("homes"), hp: s("homepass"), comp: list.length ? Math.round(list.reduce((t, a) => t + a.result.competitorPct, 0) / list.length) : 0, poi: s("poiTotal"), subs: s("estSubscribers") };
 });
 
-function sendToFtth(id: string) {
-  const a = store.aois.find((x) => x.id === id);
-  if (!a) return;
-  handoff.ftthAoi = { name: a.name, feature: a.feature, homes: a.result.homepass };
-  navigateTo("/peta/ftth?from=market");
-}
 function exportAoi(id: string, kind: string) {
   const a = store.aois.find((x) => x.id === id);
   if (!a) return;
@@ -264,7 +315,7 @@ const legend = computed(() => [
 <template>
   <div class="absolute inset-0 flex flex-col">
     <div class="h-12 bg-white border-b border-j-line flex items-center px-4 gap-4 shrink-0 z-20">
-      <span class="j-tag-teal font-display font-bold !h-6">PLANNING MARKET</span>
+      <span class="j-tag-teal font-display font-bold !h-6">MARKET POTENTIAL</span>
       <button class="j-chip !h-7" @click="filterOpen = true"><UIcon name="i-lucide-filter" class="w-3.5 h-3.5" />{{ area.label }}</button>
       <div class="flex items-center gap-4 text-[13px] overflow-x-auto hide-scrollbar">
         <span class="whitespace-nowrap">Rumah <b class="text-j-blue">{{ fmt(stat.homes) }}</b></span><span class="w-px h-4 bg-j-line" />
@@ -295,9 +346,7 @@ const legend = computed(() => [
           <UTooltip text="Analisis area" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'analysis' && 'j-icon-btn-on'" @click="right = right === 'analysis' ? '' : 'analysis'"><UIcon name="i-lucide-chart-column" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Ringkasan wilayah (POI / AOI / Footprint)" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'summary' && 'j-icon-btn-on'" @click="right = right === 'summary' ? '' : 'summary'"><UIcon name="i-lucide-chart-pie" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Riwayat analisis" :popper="{ placement: 'left' }"><button class="j-icon-btn relative" :class="right === 'history' && 'j-icon-btn-on'" @click="right = right === 'history' ? '' : 'history'"><UIcon name="i-lucide-history" class="w-5 h-5" /><span v-if="store.aois.length" class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-j-purple text-white text-[9px] font-bold flex items-center justify-center">{{ store.aois.length }}</span></button></UTooltip>
-          <UTooltip text="Fitur lain" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="showSwitch && 'j-icon-btn-on'" @click="showSwitch = !showSwitch"><UIcon name="i-lucide-layout-grid" class="w-5 h-5" /></button></UTooltip>
         </div>
-        <div v-if="showSwitch" class="absolute top-4 right-[72px] z-20"><JmapSwitcher @close="showSwitch = false" /></div>
         <div class="absolute bottom-10 right-4 z-10"><JmapControls :extent="EXTENT" /></div>
         <div class="absolute bottom-10 left-4 z-10"><JmapLegend title="Legenda Potensi" :items="legend" /></div>
         <div class="absolute bottom-2 right-4 z-10"><JmapCoords /></div>
@@ -338,6 +387,22 @@ const legend = computed(() => [
             </div>
             <p class="mt-3 text-[12px]"><b>{{ fmt(specCount) }}</b> rumah sesuai filter</p>
           </template>
+          <template v-else-if="tool === 'poi'">
+            <p class="j-title text-[14px]">POI Insight</p>
+            <p class="text-[12px] text-j-sub mt-1">Analisis POI per kategori di dalam AOI yang sudah dihitung.</p>
+            <label class="j-field-label mt-3">Apply analysis from (AOI)</label>
+            <select v-model="pi.src" class="j-select"><option value="">{{ store.active ? `AOI aktif · ${store.active.name}` : "Pilih AOI" }}</option><option v-for="a in store.aois" :key="a.id" :value="a.id">{{ a.name }}</option></select>
+            <label class="j-field-label mt-3">Kategori POI</label>
+            <div class="flex flex-wrap gap-1.5"><button v-for="c in Object.keys(POI_COLORS)" :key="c" class="h-6 px-2 rounded-[4px] text-[11px] border flex items-center gap-1.5" :class="pi.cats.includes(c) ? 'border-j-cyan text-j-ink bg-j-cyan/[0.08]' : 'border-j-line text-j-sub'" @click="pi.cats = pi.cats.includes(c) ? pi.cats.filter((x) => x !== c) : [...pi.cats, c]"><span class="w-2 h-2 rounded-full" :style="{ background: POI_COLORS[c] }" />{{ c }}</button></div>
+            <input v-model="pi.name" class="j-input mt-3" placeholder="Nama analisis (opsional)" />
+          </template>
+          <template v-else-if="tool === 'route'">
+            <p class="j-title text-[14px]">Route Analysis</p>
+            <p class="text-[12px] text-j-sub mt-1">Rute jalan dari setiap POI ke titik jaringan JLM terdekat (POP / ODC / ODP terpasang).</p>
+            <label class="j-field-label mt-3">Reference POI Insight</label>
+            <select v-model="ra.ref" class="j-select"><option value="">Pilih POI insight</option><option v-for="x in store.insights" :key="x.id" :value="x.id">{{ x.name }} · {{ x.total }} POI</option></select>
+            <p v-if="!store.insights.length" class="text-[12px] text-j-amber mt-2">Jalankan POI Insight terlebih dahulu.</p>
+          </template>
           <template v-else-if="tool === 'rank'">
             <p class="j-title text-[14px]">Ranking Potensi RW / Cluster</p>
             <p class="text-[12px] text-j-sub">Kombinasi grid potensi, jumlah rumah, dan penetrasi kompetitor.</p>
@@ -351,7 +416,7 @@ const legend = computed(() => [
               </div>
             </div>
           </template>
-          <div v-if="tool !== 'rank'" class="flex flex-wrap gap-1.5 mt-3">
+          <div v-if="!['rank', 'poi', 'route'].includes(tool)" class="flex flex-wrap gap-1.5 mt-3">
             <button v-for="l in ANALYSIS_LAYERS" :key="l" class="h-6 px-2 rounded-[4px] text-[11px] border" :class="selLayers.includes(l) ? 'border-j-cyan text-j-cyan bg-j-cyan/[0.08]' : 'border-j-line text-j-sub'" @click="selLayers = selLayers.includes(l) ? selLayers.filter((x) => x !== l) : [...selLayers, l]">{{ l }}</button>
           </div>
           <div class="grid grid-cols-2 gap-2 mt-4">
@@ -360,6 +425,8 @@ const legend = computed(() => [
             <button v-else-if="tool === 'upload'" class="j-btn-primary" :disabled="!uploaded || busy" @click="analyze(uploaded.feature, uploaded.name, 'Upload')">Hitung Rumah</button>
             <button v-else-if="tool === 'buffer'" class="j-btn-primary" :disabled="!center || busy" @click="analyze(turf.circle(center!, radius, { units: 'meters', steps: 64 }), `Radius ${radius} m`, 'Buffer')">Hitung Rumah</button>
             <button v-else-if="tool === 'spec'" class="j-btn-primary" @click="applySpec">Terapkan</button>
+            <button v-else-if="tool === 'poi'" class="j-btn-primary" :disabled="!pi.cats.length || (!pi.src && !store.active)" @click="runPoi">Apply Analysis</button>
+            <button v-else-if="tool === 'route'" class="j-btn-primary" :disabled="!ra.ref || ra.busy" @click="runRoutes">{{ ra.busy ? "Menghitung…" : "Apply Analysis" }}</button>
             <button v-else class="j-btn-primary" @click="closeTool">Tutup</button>
           </div>
         </div>
@@ -376,9 +443,41 @@ const legend = computed(() => [
       </div>
 
       <aside v-if="right" class="w-[380px] shrink-0 p-3 pl-0 z-10">
-        <MarketAnalysisPanel v-if="right === 'analysis'" @close="right = ''" @zoom="zoomTo" @ftth="sendToFtth" @remove="store.remove" @export="exportAoi" />
+        <MarketAnalysisPanel v-if="right === 'analysis'" @close="right = ''" @zoom="zoomTo" @remove="store.remove" @export="exportAoi" />
         <MarketSummaryPanel v-else-if="right === 'summary'" @close="right = ''" @zoom="zoomTo" />
-        <UiSidePanel v-else title="Riwayat Analisis" subtitle="AOI yang pernah dihitung" @close="right = ''">
+        <UiSidePanel v-else-if="right === 'insight' || right === 'routeRes'" :title="right === 'insight' ? 'POI Insight Analysis' : 'Route Insight Analysis'" :subtitle="activeInsight?.name" @close="(right = ''), setData('mk-insight', EMPTY_FC)">
+          <template #actions>
+            <UDropdown v-if="activeInsight" :items="[[{ label: 'Download Excel', icon: 'i-lucide-file-spreadsheet', click: () => exportInsight(activeInsight, 'xlsx') }, { label: 'Download KML', icon: 'i-lucide-map', click: () => exportInsight(activeInsight, 'kml') }]]"><button class="w-7 h-7 rounded-full border border-j-line flex items-center justify-center text-j-sub"><UIcon name="i-lucide-download" class="w-3.5 h-3.5" /></button></UDropdown>
+          </template>
+          <div v-if="!activeInsight" class="text-center py-12 text-[12px] text-j-sub">Belum ada insight.</div>
+          <div v-else-if="right === 'insight'" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2"><UiStat label="Total POI" :value="fmt(activeInsight.total)" /><UiStat label="Total Footprint" :value="fmt(activeInsight.footprint)" /></div>
+            <div class="space-y-1.5">
+              <div v-for="(v, k) in activeInsight.byCat" :key="k" class="flex items-center gap-2 text-[12px]"><span class="w-2 h-2 rounded-full" :style="{ background: POI_COLORS[k] }" /><span class="flex-1">{{ k }}</span><b>{{ v }}</b><div class="w-24 h-1.5 bg-j-soft rounded-full overflow-hidden"><div class="h-full rounded-full" :style="{ width: (v / Math.max(activeInsight.total, 1)) * 100 + '%', background: POI_COLORS[k] }" /></div></div>
+            </div>
+            <p class="j-label text-j-sub pt-2">POI Details</p>
+            <div class="border border-j-line rounded-[10px] divide-y divide-j-line max-h-[320px] overflow-y-auto thin-scrollbar">
+              <button v-for="(p, i) in activeInsight.pois" :key="i" class="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-j-bg" @click="map?.flyTo({ center: p.c, zoom: 17.5 })"><span class="w-2 h-2 rounded-full shrink-0" :style="{ background: POI_COLORS[p.cat] }" /><span class="flex-1 text-[12px] truncate">{{ p.name }}</span><span class="text-[11px] text-j-sub shrink-0">{{ p.sub }}</span></button>
+            </div>
+            <button class="j-btn-teal w-full" @click="(ra.ref = activeInsight.id), openTool('route')"><UIcon name="i-lucide-route" class="w-4 h-4" />Route Analysis dari insight ini</button>
+          </div>
+          <div v-else-if="activeInsight.routes" class="space-y-3">
+            <div class="grid grid-cols-2 gap-2"><UiStat label="Routes" :value="activeInsight.routes.list.length" /><UiStat label="Total kabel" :value="fmt(activeInsight.routes.total)" unit="m" /><UiStat label="Rata-rata jarak" :value="fmt(activeInsight.routes.avg)" unit="m" /><UiStat label="POI ≤ 250 m" :value="activeInsight.routes.near" /></div>
+            <p class="j-label text-j-sub pt-2">Route Details</p>
+            <div class="border border-j-line rounded-[10px] divide-y divide-j-line max-h-[360px] overflow-y-auto thin-scrollbar">
+              <button v-for="(r, i) in activeInsight.routes.list" :key="i" class="w-full px-3 py-2 text-left hover:bg-j-bg" @click="fitTo(turf.bbox(turf.lineString(r.coords)) as any, 120)">
+                <div class="flex justify-between gap-2 text-[12px]"><span class="truncate">{{ r.poi }}</span><b :class="r.len <= 250 ? 'text-j-teal' : r.len <= 1000 ? 'text-j-blue' : 'text-j-amber'">{{ fmt(r.len) }} m</b></div>
+                <p class="text-[11px] text-j-sub">{{ r.cat }} → {{ r.hub }}</p>
+              </button>
+            </div>
+          </div>
+        </UiSidePanel>
+        <UiSidePanel v-else title="Riwayat Analisis" subtitle="AOI & POI insight" @close="right = ''">
+          <div v-if="store.insights.length" class="mb-4">
+            <p class="j-label text-j-sub mb-2">POI Insight</p>
+            <button v-for="x in store.insights" :key="x.id" class="w-full text-left border border-j-line rounded-[10px] p-3 mb-2 hover:border-j-cyan" @click="(activeInsight = x), showInsight(x), (right = x.routes ? 'routeRes' : 'insight')"><p class="font-display font-bold text-[13px] truncate">{{ x.name }}</p><p class="text-[11px] text-j-sub">{{ x.total }} POI{{ x.routes ? ` · ${x.routes.list.length} rute` : "" }} · {{ x.createdAt }}</p></button>
+            <p class="j-label text-j-sub mb-2 mt-3">AOI</p>
+          </div>
           <div v-if="!store.aois.length" class="text-center py-12 text-[12px] text-j-sub">Belum ada analisis.</div>
           <div class="space-y-2">
             <button v-for="a in store.aois" :key="a.id" class="w-full text-left border rounded-[10px] p-3 transition-colors" :class="a.id === store.activeId ? 'border-j-purple bg-j-purple/[0.04]' : 'border-j-line hover:border-j-cyan'" @click="(store.activeId = a.id), (right = 'analysis'), zoomTo(a.feature)">

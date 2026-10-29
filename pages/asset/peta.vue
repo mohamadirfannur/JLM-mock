@@ -2,7 +2,7 @@
 import * as turf from "@turf/turf";
 import * as XLSX from "xlsx";
 import { SITE_COLORS, CABLE_COLORS, SITE_TYPES, SITE_LABEL } from "~/utils/jlmSites";
-import { routeAlongRoads, polesAlong, metersBetween } from "~/utils/ftthEngine";
+import { routeAlongRoads, polesAlong, metersBetween, routeOptions, PRICE } from "~/utils/ftthEngine";
 import type { AreaSel } from "~/stores/area";
 
 definePageMeta({ layout: "app" });
@@ -19,8 +19,7 @@ const toast = useToast();
 
 const EXTENT: [number, number, number, number] = [107.67, -6.975, 107.72, -6.935];
 const leftOpen = ref(true);
-const right = ref<"" | "summary" | "detail" | "activity" | "add_site" | "add_cable" | "import" | "edit_attr" | "generate_pole" | "move">("");
-const showSwitch = ref(false);
+const right = ref<"" | "summary" | "detail" | "activity" | "add_site" | "add_cable" | "import" | "edit_attr" | "generate_pole" | "move" | "sites" | "routes" | "buffer" | "boq" | "split" | "reroute">("");
 const showTable = ref(false);
 const filterOpen = ref(false);
 const selSite = ref<string | null>(null);
@@ -118,7 +117,9 @@ async function onReady() {
   addLayer({ id: "as-cl-fill", type: "fill", source: "as-clusters", paint: { "fill-color": ["case", ["get", "planned"], "#7B2FFF", "#00D4FF"], "fill-opacity": 0.07 } });
   addLayer({ id: "as-cl-line", type: "line", source: "as-clusters", paint: { "line-color": ["case", ["get", "planned"], "#7B2FFF", "#00D4FF"], "line-width": 1.2, "line-dasharray": ["literal", [2, 2]] as any } });
   addLayer({ id: "as-cl-label", type: "symbol", source: "as-clusters", layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 10, "text-letter-spacing": 0.03 }, paint: { "text-color": "#00AACC", "text-halo-color": "#ffffff", "text-halo-width": 2.5 } });
-  addLayer({ id: "as-sel-line", type: "line", source: "as-sel", filter: ["==", "$type", "LineString"], paint: { "line-color": "#00D4FF", "line-width": 9, "line-opacity": 0.28 } });
+  addLayer({ id: "as-sel-fill", type: "fill", source: "as-sel", filter: ["==", "$type", "Polygon"], paint: { "fill-color": "#7B2FFF", "fill-opacity": 0.1 } });
+  addLayer({ id: "as-sel-pline", type: "line", source: "as-sel", filter: ["==", "$type", "Polygon"], paint: { "line-color": "#7B2FFF", "line-width": 2, "line-dasharray": [2, 1.5] } });
+  addLayer({ id: "as-sel-line", type: "line", source: "as-sel", filter: ["==", "$type", "LineString"], paint: { "line-color": ["case", ["==", ["get", "alt"], true], "#B8C4C1", "#00D4FF"], "line-width": ["case", ["==", ["get", "alt"], true], 4, 9], "line-opacity": ["case", ["==", ["get", "alt"], true], 0.9, 0.35] } });
   const cableColor = ["match", ["get", "type"], ...Object.entries(CABLE_COLORS).flat(), "#A78BFA"];
   const width = ["interpolate", ["linear"], ["get", "cores"], 12, 2, 96, 3.5, 288, 5];
   Object.keys(CABLE_COLORS).forEach((ty) => {
@@ -488,6 +489,174 @@ async function onAttr(e: Event) {
   attrMsg.value = `${n} aset diperbarui dari ${rows.length} baris.`;
 }
 
+// ---------- site points list (surge: Site Points panel) ----------
+const spType = ref("POP");
+const spQ = ref("");
+const spOpen = ref<string | null>(null);
+const spList = computed(() => vSites.value.filter((x) => (spType.value === "Semua" ? x.type !== "Pole" : x.type === spType.value) && (x.code + x.name).toLowerCase().includes(spQ.value.toLowerCase())).slice(0, 60));
+const connected = (id: string) => {
+  const x = store.siteById(id);
+  return x ? store.cables.filter((c) => metersBetween(c.coords[0] as any, x.coord) < 2 || metersBetween(c.coords[c.coords.length - 1] as any, x.coord) < 2) : [];
+};
+function previewSite(id: string) {
+  const cabs = connected(id);
+  preview.value = cabs.map((c) => turf.lineString(c.coords));
+  selSite.value = id;
+  if (cabs.length) fitTo(turf.bbox(turf.featureCollection(preview.value)) as any, 100);
+  else map.value?.flyTo({ center: store.siteById(id)!.coord, zoom: 17 });
+}
+// find routes between two site points (R1 recommended, R2/R3 alternatives)
+const fr = reactive({ from: "", to: "", opts: [] as { coords: [number, number][]; length: number; via: string }[], sel: 0, boq: null as null | { items: any[]; total: number } });
+async function findRoutes(id: string) {
+  Object.assign(fr, { from: id, to: "", opts: [], sel: 0, boq: null });
+  right.value = "routes";
+  const r = await pick("site", "Klik sitepoint tujuan untuk mencari rute");
+  if (!r?.id) return;
+  fr.to = r.id;
+  const A = store.siteById(fr.from)!, B = store.siteById(fr.to)!;
+  const roads = geo.roadsNear(turf.buffer(turf.lineString([A.coord, B.coord]), 500, { units: "meters" })!, 200);
+  fr.opts = routeOptions(roads, A.coord, B.coord, 3) as any;
+  showRoutes();
+}
+function showRoutes() {
+  preview.value = [...fr.opts.map((o, i) => (i === fr.sel ? null : turf.lineString(o.coords, { alt: true }))).filter(Boolean), fr.opts[fr.sel] && turf.lineString(fr.opts[fr.sel].coords)].filter(Boolean) as any;
+  fr.boq = null;
+  if (fr.opts.length) fitTo(turf.bbox(turf.featureCollection(fr.opts.map((o) => turf.lineString(o.coords)))) as any, 90);
+}
+const boqLine = (len: number, cores = 48) => {
+  const it = (code: string, q: number) => ({ code, item: PRICE[code].item, unit: PRICE[code].unit, qty: Math.round(q), price: PRICE[code].price, total: Math.round(q) * PRICE[code].price });
+  const items = [it(`C${cores}`, len * 1.05 + Math.floor(len / 350) * 20), it("T72", Math.ceil(len / 60) + 1), it("JC", Math.max(1, Math.floor(len / 3500)) + 1), it("COIL", Math.floor(len / 350)), it("ACC", Math.ceil(len / 60) + 1), it("J_TARIK", len * 1.05), it("J_TANAM", Math.ceil(len / 60) + 1), it("J_SPLICE", cores * 2)];
+  return { items, total: items.reduce((a, b) => a + b.total, 0) };
+};
+function routeBoq() {
+  const o = fr.opts[fr.sel];
+  if (o) fr.boq = boqLine(o.length, 48);
+}
+function saveRoute() {
+  const o = fr.opts[fr.sel];
+  const A = store.siteById(fr.from)!, B = store.siteById(fr.to)!;
+  const c = store.addCable({ code: `CBL-R-${String(store.cables.length + 1).padStart(3, "0")}`, label: `BDG-F${4600 + store.cables.length}.48 (Feed ${A.code}-${B.code}_${Math.round(o.length)}M)`, type: "Feeder", cores: 48, tubes: 4, install: "Aerial", status: "Planned", coords: o.coords, length: Math.round(o.length), from: A.code, to: B.code });
+  toast.add({ title: `Rute R${fr.sel + 1} disimpan sebagai kabel rencana`, description: c.label, icon: "i-lucide-check-circle-2", color: "green" });
+  preview.value = [];
+  select("cable", c.id);
+}
+function exportBoq(name: string, items: any[], total: number) {
+  exportXLSX(`BOQ_${name.replace(/[^A-Za-z0-9]+/g, "_")}.xlsx`, { BOQ: [...items.map((i) => ({ Item: i.item, Qty: i.qty, Satuan: i.unit, "Harga Satuan": i.price, Total: i.total })), { Item: "TOTAL", Qty: "", Satuan: "", "Harga Satuan": "", Total: total }] });
+}
+
+// ---------- buffer kabel ----------
+const bf = reactive({ cable: "", dist: 50, res: null as any });
+async function pickBuf() {
+  const r = await pick("cable", "Klik segmen kabel untuk buffer");
+  if (r?.id) (bf.cable = r.id), runBuffer();
+}
+function runBuffer() {
+  const c = store.cables.find((x) => x.id === bf.cable);
+  if (!c) return;
+  const poly = turf.buffer(turf.lineString(c.coords), bf.dist, { units: "meters" })!;
+  const b = geo.buildingsIn(poly);
+  const sites = store.sites.filter((x) => turf.booleanPointInPolygon(x.coord, poly));
+  const byT: Record<string, number> = {};
+  sites.forEach((x) => (byT[x.type] = (byT[x.type] || 0) + 1));
+  bf.res = { area: turf.area(poly), homes: b.filter((x) => x.properties.t === "res").length, com: b.filter((x) => x.properties.t !== "res").length, poi: geo.poiIn(poly).length, byT, len: c.length };
+  preview.value = [poly, turf.lineString(c.coords)];
+}
+watch(() => bf.dist, () => bf.cable && runBuffer());
+
+// ---------- BOQ & BOM polygon ----------
+const bq = reactive({ poly: null as any, items: [] as any[], total: 0, counts: {} as Record<string, number> });
+async function drawBoq() {
+  bq.poly = null;
+  bq.items = [];
+  const f = await draw.start("polygon");
+  if (!f) return;
+  bq.poly = f;
+  preview.value = [f];
+  const inside = (c: any) => turf.booleanPointInPolygon(c, f);
+  const sites = store.sites.filter((x) => inside(x.coord));
+  const ids = new Set(sites.map((x) => x.id));
+  const as = store.assets.filter((a) => ids.has(a.siteId));
+  const q: Record<string, number> = {};
+  const add = (k: string, n: number) => (q[k] = (q[k] || 0) + n);
+  as.forEach((a) => {
+    if (a.type === "ODP") add("ODP", 1);
+    else if (a.type === "ODC") add(a.name.includes("48") ? "ODC48" : "ODC24", 1);
+    else if (a.type === "OLT") add("OLT", 1);
+    else if (a.type === "ONT") add("ONT", 1);
+    else if (a.type === "JC") add("JC", 1);
+  });
+  sites.filter((x) => x.type === "Pole").forEach((x) => add(x.poleType === "T9 2-Stage" ? "T92" : x.poleType === "T7 2-Stage" ? "T72" : "T71", 1));
+  let cabLen = 0;
+  store.cables.forEach((c) => {
+    const n = c.coords.filter((p) => inside(p)).length;
+    if (!n) return;
+    const len = (c.length * n) / c.coords.length;
+    cabLen += len;
+    const code = `C${[12, 24, 48, 96, 144, 288].find((x) => x >= c.cores) || 288}`;
+    add(code, len * 1.05);
+  });
+  if (cabLen) add("J_TARIK", cabLen * 1.05);
+  const poles = (q.T71 || 0) + (q.T72 || 0) + (q.T92 || 0);
+  if (poles) add("J_TANAM", poles);
+  if (q.ODP) add("J_ODP", q.ODP);
+  bq.items = Object.entries(q).filter(([k]) => PRICE[k]).map(([k, v]) => ({ code: k, item: PRICE[k].item, unit: PRICE[k].unit, qty: Math.round(v), price: PRICE[k].price, total: Math.round(v) * PRICE[k].price }));
+  bq.total = bq.items.reduce((a, b) => a + b.total, 0);
+  bq.counts = { "Site points": sites.length, Aset: as.length, "Segmen kabel": store.cables.filter((c) => c.coords.some((p) => inside(p))).length, "Panjang kabel (m)": Math.round(cabLen) };
+}
+
+// ---------- split kabel ----------
+const sc = reactive({ cable: "", idx: -1, at: "" });
+async function pickSplit() {
+  Object.assign(sc, { cable: "", idx: -1, at: "" });
+  const r = await pick("cable", "Langkah 1 · klik segmen kabel");
+  if (!r?.id) return;
+  sc.cable = r.id;
+  const c = store.cables.find((x) => x.id === r.id)!;
+  preview.value = [turf.lineString(c.coords)];
+  const r2 = await pick("any", "Langkah 2 · klik sitepoint (tiang / JC) sebagai titik split");
+  const s2 = r2?.kind === "site" ? store.siteById(r2.id) : null;
+  if (!s2) return;
+  let best = -1, bd = Infinity;
+  c.coords.forEach((p, i) => {
+    if (i === 0 || i === c.coords.length - 1) return;
+    const d = metersBetween(p as any, s2.coord);
+    if (d < bd) (bd = d), (best = i);
+  });
+  if (best < 0 || bd > 60) return toast.add({ title: "Titik split terlalu jauh dari kabel", description: "Pilih sitepoint yang berada di jalur kabel.", color: "orange" });
+  sc.idx = best;
+  sc.at = s2.code;
+  preview.value = [turf.lineString(c.coords.slice(0, best + 1)), turf.lineString(c.coords.slice(best), { alt: true }), turf.point(c.coords[best])];
+}
+function doSplit() {
+  const c = store.cables.find((x) => x.id === sc.cable)!;
+  const a = c.coords.slice(0, sc.idx + 1), b = c.coords.slice(sc.idx);
+  const la = Math.round(turf.length(turf.lineString(a), { units: "meters" })), lb = Math.round(turf.length(turf.lineString(b), { units: "meters" }));
+  const base = c.label.split(" (")[0];
+  store.updateCable(c.id, { coords: a, length: la, code: c.code + "-A", label: `${base}A (${c.from || ""}-${sc.at}_${la}M)`, to: sc.at });
+  store.addCable({ ...c, id: undefined as any, code: c.code + "-B", label: `${base}B (${sc.at}-${c.to || ""}_${lb}M)`, coords: b, length: lb, from: sc.at });
+  toast.add({ title: "Kabel di-split", description: `${la} m + ${lb} m di ${sc.at}`, icon: "i-lucide-scissors", color: "green" });
+  Object.assign(sc, { cable: "", idx: -1, at: "" });
+  preview.value = [];
+}
+
+// ---------- edit rute kabel ----------
+const rr = reactive({ cable: "", len: 0 });
+async function pickReroute() {
+  const r = await pick("cable", "Klik segmen kabel yang akan diubah rutenya");
+  if (!r?.id) return;
+  rr.cable = r.id;
+  const c = store.cables.find((x) => x.id === r.id)!;
+  preview.value = [turf.lineString(c.coords, { alt: true })];
+  toast.add({ title: "Gambar jalur baru", description: "Ujung awal & akhir terkunci ke sitepoint. Double-click untuk selesai." });
+  const f = await draw.start("line");
+  if (!f) return;
+  const coords = [c.coords[0], ...f.geometry.coordinates, c.coords[c.coords.length - 1]] as [number, number][];
+  rr.len = Math.round(turf.length(turf.lineString(coords), { units: "meters" }));
+  store.updateCable(c.id, { coords, length: rr.len });
+  preview.value = [turf.lineString(coords)];
+  toast.add({ title: "Rute kabel diperbarui", description: `${c.code} · ${fmt(c.length)} m → ${fmt(rr.len)} m`, icon: "i-lucide-check-circle-2", color: "green" });
+}
+
 // ---------- tools ----------
 const TOOLS = [
   { id: "add_site", icon: "i-lucide-map-pin-plus", tip: "Tambah Sitepoint" },
@@ -495,11 +664,16 @@ const TOOLS = [
   { id: "move", icon: "i-lucide-move", tip: "Pindah Sitepoint" },
   { id: "edit_attr", icon: "i-lucide-table-properties", tip: "Edit Atribut (Excel)" },
   { id: "generate_pole", icon: "i-lucide-git-commit-vertical", tip: "Generate Tiang" },
+  { id: "reroute", icon: "i-lucide-pen-line", tip: "Edit Rute Kabel" },
+  { id: "split", icon: "i-lucide-scissors", tip: "Split Kabel" },
   { id: "core", icon: "i-lucide-cpu", tip: "Core Config" },
+  { id: "buffer", icon: "i-lucide-circle-dashed", tip: "Buffer Kabel" },
+  { id: "boq", icon: "i-lucide-calculator", tip: "BOQ & BOM Polygon" },
   { id: "import", icon: "i-lucide-upload", tip: "Import KML / Excel / GIS" },
   { id: "delete", icon: "i-lucide-trash-2", tip: "Hapus Aset" },
 ];
-const activeTool = computed(() => (deleteMode.value ? "delete" : ["add_site", "add_cable", "move", "edit_attr", "generate_pole", "import"].includes(right.value) ? right.value : ""));
+const TOOL_PANELS = ["add_site", "add_cable", "move", "edit_attr", "generate_pole", "import", "buffer", "boq", "split", "reroute"];
+const activeTool = computed(() => (deleteMode.value ? "delete" : TOOL_PANELS.includes(right.value) ? right.value : ""));
 async function openTool(id: string) {
   cancelTool();
   if (id === "delete") {
@@ -511,6 +685,10 @@ async function openTool(id: string) {
     if (r?.id) select("cable", r.id);
     return;
   }
+  if (id === "split") return (right.value = "split"), pickSplit();
+  if (id === "reroute") return (right.value = "reroute"), pickReroute();
+  if (id === "boq") return (right.value = "boq"), drawBoq();
+  if (id === "buffer") return (right.value = "buffer"), pickBuf();
   if (id === "move") {
     const r = await pick("site", "Klik sitepoint yang akan dipindah");
     if (r?.id) (selSite.value = r.id), startMove(r.id);
@@ -524,7 +702,7 @@ function cancelTool() {
   preview.value = [];
   moving.value = null;
   deleteMode.value = false;
-  if (["add_site", "add_cable", "move", "edit_attr", "generate_pole", "import"].includes(right.value)) right.value = "";
+  if (TOOL_PANELS.includes(right.value) || right.value === "routes") right.value = "";
 }
 watch([leftOpen, right], () => nextTick(() => setTimeout(() => map.value?.resize(), 10)));
 onBeforeUnmount(() => {
@@ -594,11 +772,10 @@ const sitesForPick = computed(() => store.sites.filter((s) => s.type !== "Pole")
         <div class="absolute top-4 right-4 z-10 flex flex-col gap-3">
           <UTooltip text="Ringkasan & laporan aset" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'summary' && 'j-icon-btn-on'" @click="right = right === 'summary' ? '' : 'summary'"><UIcon name="i-lucide-chart-column" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Detail aset terpilih" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'detail' && 'j-icon-btn-on'" @click="right = right === 'detail' ? '' : 'detail'"><UIcon name="i-lucide-chart-pie" class="w-5 h-5" /></button></UTooltip>
+          <UTooltip text="Site Points" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'sites' && 'j-icon-btn-on'" @click="right = right === 'sites' ? '' : 'sites'"><UIcon name="i-lucide-git-fork" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Tabel aset" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="showTable && 'j-icon-btn-on'" @click="showTable = !showTable"><UIcon name="i-lucide-chart-bar-big" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Activity log" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'activity' && 'j-icon-btn-on'" @click="right = right === 'activity' ? '' : 'activity'"><UIcon name="i-lucide-history" class="w-5 h-5" /></button></UTooltip>
-          <UTooltip text="Fitur lain" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="showSwitch && 'j-icon-btn-on'" @click="showSwitch = !showSwitch"><UIcon name="i-lucide-layout-grid" class="w-5 h-5" /></button></UTooltip>
         </div>
-        <div v-if="showSwitch" class="absolute top-4 right-[72px] z-20"><JmapSwitcher @close="showSwitch = false" /></div>
         <div class="absolute bottom-10 right-4 z-10"><JmapControls :extent="EXTENT" /></div>
         <div class="absolute bottom-10 left-4 z-10"><JmapLegend :items="legend" /></div>
         <div class="absolute bottom-2 right-4 z-10"><JmapCoords /></div>
@@ -630,6 +807,93 @@ const sitesForPick = computed(() => store.sites.filter((s) => s.type !== "Pole")
         <AssetReportPanel v-if="right === 'summary'" @close="right = ''" @select="(id) => select('site', id, true)" />
         <AssetDetailPanel v-else-if="right === 'detail'" :site-id="selSite" :cable-id="selCable" @close="right = ''" @add-asset="(sid) => (assetModal = { siteId: sid })" @edit-asset="(sid, aid) => (assetModal = { siteId: sid, assetId: aid })" @move="startMove" @deleted="(selSite = null), (selCable = null)" @zoom="(c) => map?.flyTo({ center: c, zoom: 18.5 })" @poles="(id) => ((pole.cable = id), (right = 'generate_pole'), previewPoles())" />
         <UiSidePanel v-else-if="right === 'activity'" title="Activity Log" subtitle="Riwayat aksi tim aset" @close="right = ''"><AssetActivityPanel embedded @close="right = ''" /></UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'sites'" title="Site Points" subtitle="Daftar sitepoint · rute & BOQ" @close="right = ''">
+          <div class="flex flex-wrap gap-1.5 mb-2"><button v-for="t in ['POP', 'ODC', 'ODP', 'JC', 'Semua']" :key="t" class="j-chip !h-6 !px-2.5 !text-[11px]" :class="spType === t && 'j-chip-on'" @click="spType = t">{{ t === "POP" ? "OLT / POP" : t }}</button></div>
+          <input v-model="spQ" class="j-input mb-3" placeholder="Cari kode sitepoint..." />
+          <div class="space-y-2">
+            <div v-for="x in spList" :key="x.id" class="border rounded-[10px]" :class="spOpen === x.id ? 'border-j-cyan' : 'border-j-line'">
+              <button class="w-full flex items-center gap-2 p-2.5 text-left" @click="spOpen = spOpen === x.id ? null : x.id">
+                <JmapMarker :kind="x.type === 'POP' ? 'diamond' : 'circle'" :color="SITE_COLORS[x.type]" />
+                <span class="flex-1 min-w-0"><p class="font-display font-bold text-[13px] truncate">{{ x.code }}</p><p class="text-[11px] text-j-sub truncate">{{ x.name !== x.code ? x.name + " · " : "" }}{{ connected(x.id).length }} kabel terhubung</p></span>
+                <span :class="x.status === 'Installed' ? 'j-tag-teal' : x.status === 'Planned' ? 'j-tag-purple' : 'j-tag-amber'">{{ x.status === "Installed" ? "Aktif" : x.status === "Planned" ? "Rencana" : "Maint." }}</span>
+              </button>
+              <div v-if="spOpen === x.id" class="border-t border-j-line p-2.5 grid grid-cols-2 gap-1.5">
+                <button class="j-btn-outline j-btn-sm font-sans font-normal" @click="(map?.flyTo({ center: x.coord, zoom: 18 }), openCard(x.id))"><UIcon name="i-lucide-locate-fixed" class="w-3.5 h-3.5" />Jump to site</button>
+                <button class="j-btn-outline j-btn-sm font-sans font-normal" @click="previewSite(x.id)"><UIcon name="i-lucide-eye" class="w-3.5 h-3.5" />Preview</button>
+                <button class="j-btn-teal j-btn-sm font-sans font-normal" @click="findRoutes(x.id)"><UIcon name="i-lucide-route" class="w-3.5 h-3.5" />Find Routes</button>
+                <button class="j-btn-primary j-btn-sm" @click="(select('site', x.id), (right = 'detail'))"><UIcon name="i-lucide-info" class="w-3.5 h-3.5" />Detail</button>
+              </div>
+            </div>
+            <p v-if="!spList.length" class="text-center text-[12px] text-j-sub py-6">Tidak ada sitepoint.</p>
+          </div>
+        </UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'routes'" title="Find Routes" :subtitle="`${store.siteById(fr.from)?.code || ''} → ${store.siteById(fr.to)?.code || 'pilih tujuan di peta'}`" @close="(right = 'sites'), (preview = [])">
+          <div v-if="!fr.opts.length" class="text-center text-[13px] text-j-sub py-10"><UIcon name="i-lucide-mouse-pointer-click" class="w-8 h-8 text-j-cyan mb-2" /><br />Klik sitepoint tujuan di peta.</div>
+          <div v-else class="space-y-2">
+            <button v-for="(o, i) in fr.opts" :key="i" class="w-full text-left border rounded-[10px] p-3" :class="fr.sel === i ? 'border-j-cyan bg-j-cyan/[0.05]' : 'border-j-line'" @click="(fr.sel = i), showRoutes()">
+              <div class="flex items-center gap-2"><span class="j-tag-cyan font-display font-bold">R{{ i + 1 }}</span><span v-if="i === 0" class="j-tag-teal">Recommended</span><span class="flex-1" /><b class="text-[14px]">{{ fmt(o.length) }} m</b></div>
+              <p class="text-[11px] text-j-sub mt-1.5">{{ o.via }} · ± {{ Math.ceil(o.length / 60) + 1 }} tiang · {{ i ? `+${fmt(o.length - fr.opts[0].length)} m dari R1` : "jalur terpendek" }}</p>
+            </button>
+            <div class="grid grid-cols-2 gap-2 pt-1"><button class="j-btn-outline h-9" @click="routeBoq">Generate BOQ/BOM</button><button class="j-btn-primary h-9" @click="saveRoute">Simpan sebagai kabel</button></div>
+            <div v-if="fr.boq" class="border border-j-line rounded-[10px] overflow-hidden mt-2">
+              <div class="px-3 py-2 bg-j-bg flex justify-between text-[12px]"><b class="font-display">BOQ/BOM Rute R{{ fr.sel + 1 }}</b><b class="text-j-blue">{{ idr(fr.boq.total) }}</b></div>
+              <div v-for="it in fr.boq.items" :key="it.code" class="flex justify-between gap-2 px-3 py-1.5 border-t border-j-line text-[11px]"><span class="text-j-sub">{{ it.item }}</span><span class="shrink-0">{{ fmt(it.qty) }} {{ it.unit }} · <b>{{ fmt(it.total) }}</b></span></div>
+              <button class="w-full text-[12px] text-j-blue py-2 border-t border-j-line hover:bg-j-bg" @click="exportBoq(`Rute_${store.siteById(fr.from)?.code}_${store.siteById(fr.to)?.code}`, fr.boq.items, fr.boq.total)">Download Excel</button>
+            </div>
+          </div>
+        </UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'buffer'" title="Buffer Kabel" subtitle="Analisis area di sepanjang jalur kabel" @close="cancelTool">
+          <div class="space-y-3">
+            <div><label class="j-field-label">Segmen kabel</label><div class="flex gap-2"><input :value="store.cables.find((c) => c.id === bf.cable)?.label || ''" readonly class="j-input bg-j-bg" placeholder="Pilih kabel di peta" /><button class="j-btn-outline !px-3" @click="pickBuf"><UIcon name="i-lucide-mouse-pointer-click" class="w-4 h-4" /></button></div></div>
+            <div><div class="flex justify-between text-[12px]"><span class="text-j-sub">Jarak buffer</span><b>{{ bf.dist }} m</b></div><input v-model.number="bf.dist" type="range" min="10" max="300" step="10" class="w-full accent-[#00D4FF]" /></div>
+            <template v-if="bf.res">
+              <div class="grid grid-cols-2 gap-2">
+                <UiStat label="Rumah dalam buffer" :value="fmt(bf.res.homes)" />
+                <UiStat label="Non-residensial" :value="fmt(bf.res.com)" />
+                <UiStat label="Panjang kabel" :value="fmt(bf.res.len)" unit="m" />
+                <UiStat label="Luas buffer" :value="m2(bf.res.area)" />
+              </div>
+              <div class="border border-j-line rounded-[10px] divide-y divide-j-line text-[12px]">
+                <div v-for="(v, k) in bf.res.byT" :key="k" class="flex justify-between px-3 py-2"><span class="text-j-sub">{{ SITE_LABEL[k] || k }}</span><b>{{ v }}</b></div>
+                <div class="flex justify-between px-3 py-2"><span class="text-j-sub">POI</span><b>{{ bf.res.poi }}</b></div>
+              </div>
+              <p class="text-[11px] text-j-sub">Rumah dalam buffer berpotensi disambung dari kabel ini (drop ≤ {{ bf.dist }} m).</p>
+            </template>
+          </div>
+        </UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'boq'" title="BOQ & BOM Polygon" subtitle="Gambar polygon untuk menghitung material terpasang" @close="cancelTool">
+          <div class="space-y-3">
+            <button class="j-btn-outline w-full font-sans font-medium" @click="draw.active.value ? draw.finishNow() : drawBoq()"><UIcon name="i-lucide-pentagon" class="w-4 h-4" />{{ draw.active.value ? `Selesai (${draw.vertexCount.value} titik)` : bq.poly ? "Gambar ulang polygon" : "Draw Polygon" }}</button>
+            <template v-if="bq.poly">
+              <div class="grid grid-cols-2 gap-2"><UiStat v-for="(v, k) in bq.counts" :key="k" :label="k" :value="fmt(v)" /></div>
+              <div class="bg-j-cyan/[0.06] rounded-[8px] p-3"><p class="text-[11px] text-j-sub">Total estimasi (material + jasa)</p><p class="font-display font-bold text-[18px] text-j-ink">{{ idr(bq.total) }}</p></div>
+              <div class="border border-j-line rounded-[10px] overflow-hidden">
+                <div class="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 bg-j-bg text-[10px] font-display font-bold uppercase"><span>Item</span><span>Qty</span><span>Total</span></div>
+                <div v-for="it in bq.items" :key="it.code" class="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-1.5 border-t border-j-line text-[11px]"><span class="text-j-sub">{{ it.item }}</span><span>{{ fmt(it.qty) }} {{ it.unit }}</span><b>{{ fmt(it.total) }}</b></div>
+              </div>
+              <button class="j-btn-primary w-full" @click="exportBoq('Polygon', bq.items, bq.total)"><UIcon name="i-lucide-download" class="w-4 h-4" />Download Excel</button>
+            </template>
+          </div>
+        </UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'split'" title="Split Kabel" subtitle="Bagi satu segmen kabel menjadi dua" @close="cancelTool">
+          <ol class="text-[12px] text-j-sub space-y-1.5 list-decimal ml-4"><li>Klik segmen kabel di peta.</li><li>Klik tiang / JC / sitepoint di jalur kabel sebagai titik split.</li><li>Konfirmasi split.</li></ol>
+          <div class="mt-3 space-y-2 text-[12px]">
+            <div class="rounded-[8px] bg-j-bg p-3"><p class="text-j-sub">Kabel</p><p class="font-medium break-all">{{ store.cables.find((c) => c.id === sc.cable)?.label || "–" }}</p></div>
+            <div class="rounded-[8px] bg-j-bg p-3"><p class="text-j-sub">Split di</p><p class="font-medium">{{ sc.at || "–" }}</p></div>
+          </div>
+          <template #footer><div class="grid grid-cols-2 gap-2"><button class="j-btn-outline h-10" @click="pickSplit">Pilih ulang</button><button class="j-btn-primary h-10" :disabled="sc.idx < 0" @click="doSplit">Split Kabel</button></div></template>
+        </UiSidePanel>
+
+        <UiSidePanel v-else-if="right === 'reroute'" title="Edit Rute Kabel" subtitle="Gambar ulang jalur kabel" @close="cancelTool">
+          <ol class="text-[12px] text-j-sub space-y-1.5 list-decimal ml-4"><li>Klik kabel yang akan diubah.</li><li>Gambar jalur baru di peta — titik awal & akhir otomatis terkunci ke sitepoint.</li><li>Double-click untuk menyimpan.</li></ol>
+          <div v-if="rr.cable" class="mt-3 rounded-[8px] bg-j-bg p-3 text-[12px]"><p class="text-j-sub">Kabel</p><p class="font-medium break-all">{{ store.cables.find((c) => c.id === rr.cable)?.label }}</p><p v-if="rr.len" class="mt-1">Panjang baru: <b>{{ fmt(rr.len) }} m</b></p></div>
+          <template #footer><button class="j-btn-primary w-full h-10" @click="pickReroute">{{ rr.cable ? "Edit kabel lain" : "Pilih kabel" }}</button></template>
+        </UiSidePanel>
 
         <!-- Tambah Sitepoint -->
         <UiSidePanel v-else-if="right === 'add_site'" title="Tambah Sitepoint" subtitle="Klik peta atau isi koordinat" @close="cancelTool">

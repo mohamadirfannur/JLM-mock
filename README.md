@@ -4,26 +4,18 @@ Prototype web untuk **PT Jala Lintas Media** — tampilan mengikuti Figma *JLM -
 Semua data berjalan di browser (tanpa backend); jaringan jalan, bangunan, dan POI area Gedebage–Rancasari Bandung diambil dari OpenStreetMap, atribut aset & harga bersifat contoh.
 
 ## Struktur aplikasi
-| Menu | Route | Isi |
+Setelah login, **Beranda** menampilkan dua grup (seperti surge): **Business Planning** (Market Potential Analysis, Assets Management) dan **Business Operation** (FTTH Mapping). Setiap modul berdiri sendiri — navbar & sidebar berganti sesuai modul, area Filter Lokasi disimpan per modul, dan tidak ada data yang dikirim antar modul.
+
+| Modul | Halaman | Fungsi |
 |---|---|---|
-| Login | `/` | Masuk (akun contoh sudah terisi) |
-| Dashboard | `/dashboard` | KPI aset pasif/aktif, coverage FTTH, kualitas data, tabel aset, distribusi, proyek per RW, laporan segmen kabel |
-| Proyek Jaringan | `/proyek` | Daftar proyek FTTH / MPLS / MW + Project Detail (mini map, *Add to Map*) |
-| Peta · Asset Management | `/peta/asset` | Filter Lokasi → peta jaringan, Map Content, Map Tools (tambah sitepoint/kabel, pindah, edit atribut, generate tiang, core config, import, **hapus**), popup aset, detail & port, tabel, activity log |
-| Peta · FTTH Auto-Design | `/peta/ftth` | Desain baru (upload KMZ/Excel/SHP, gambar polygon, pilih RW) → **Processing Queue** → *Generate & Insert to Cable* → hasil, BOQ/BOM, export, kirim ke inventaris |
-| Peta · Planning Market | `/peta/market` | Pilih RW/cluster atau gambar/upload AOI → jumlah rumah, kelas rumah, kompetitor ISP, POI, revenue → *Buat Desain FTTH* |
-| BOQ & BOM | `/boq-bom` | Laporan aktual material: rencana vs terpasang per RW/cluster, skenario 100/30/50%, export Excel/PDF/KML/DXF |
-| Pengguna / Pengaturan | `/pengguna`, `/pengaturan` | Manajemen user, standar desain JLM, harga satuan, integrasi, reset data |
+| **Market Potential Analysis** | `/market` Peta Analisis · `/market/laporan` | Hitung jumlah rumah dari AOI: **gambar polygon**, **upload KML/KMZ/GeoJSON/SHP**, buffer radius, klik RW/kelurahan. Hasil: kelas rumah, harga, carport, daya, jalan, kompetitor ISP, POI, revenue. **POI Insight** per kategori, **Route Analysis** POI → jaringan JLM terdekat, filter atribut, ranking potensi, export CSV/Excel/KML |
+| **Assets Management** | `/asset` Dashboard · `/asset/inventaris` · `/asset/peta` · `/asset/boq-bom` | Buat & kelola aset: **Tambah Sitepoint**, **Add Asset** (serial, RFID, tag, tanggal, maintenance, attachment, port), **Tambah Kabel/Rute** (auto ikut jalan / manual), pindah, **hapus**, edit rute, **split kabel**, generate tiang, core config, edit atribut via Excel, import KML/Excel/GIS, **Site Points** (jump, preview, **Find Routes** R1/R2/R3 + BOQ), **Buffer kabel**, **BOQ & BOM polygon**, tabel aset, activity log, laporan kapasitas; BOQ & BOM aktual (rencana vs terpasang) |
+| **FTTH Mapping** | `/ftth` Peta FTTH · `/ftth/proyek` · `/ftth/boq-bom` | Auto-design per RW/cluster (standar JLM), **Processing Queue** → *Generate & Insert to Cable*, hasil desain + skenario 30/50/100%, edit manual (pindah, hapus, **tambah ODP/tiang/JC**), export KML/DXF/PDF/Excel, finalisasi As-built, BOQ & BOM desain |
 
-Di tiap peta, tombol **Fitur lain** (ikon grid di kanan) membuka *Map Dashboard* untuk pindah modul. Area yang dipilih di Filter Lokasi dipakai bersama oleh semua modul.
-
-## Alur presentasi (± 10 menit)
-1. Login → Dashboard.
-2. Peta → **Filter Lokasi**: pilih *Cluster Perumahan C · Cisaranten Wetan* → *Terapkan Data* → klik ODC/ODP → popup → *Edit Aset* (port, edit, hapus).
-3. Fitur lain → **Planning Market** → Filter Lokasi pilih *RW 07 Cipamokolan* → lihat jumlah rumah & potensi → *Buat Desain FTTH untuk area ini*.
-4. Wizard FTTH (parameter standar JLM sudah terisi) → *Proses Desain* → pantau **Processing Queue** → *Generate & Insert to Cable* → Hasil Desain (skenario 30/50/100%, BOQ/BOM, Export) → *Kirim ke inventaris aset*.
-5. Buka di Asset Management (aset status rencana, garis putus-putus) → Ringkasan → *Set As-built*.
-6. **BOQ & BOM** → pilih cluster → rencana vs terpasang → Export.
+## Alur presentasi
+1. Login → Beranda → **Business Planning → Market Potential**: Filter Lokasi pilih cluster atau *Gambar AOI* / *Upload AOI* → jumlah rumah & potensi → POI Insight → Route Analysis → Laporan Analisis.
+2. Beranda → **Assets Management**: Dashboard → Peta Jaringan → Tambah Sitepoint → Add Asset → Tambah Kabel → Site Points → Find Routes → Generate BOQ/BOM → hapus aset → Activity Log → BOQ & BOM.
+3. Beranda → **Business Operation → FTTH Mapping**: Desain Baru → Processing Queue → Generate & Insert → Hasil (BOQ, Export) → Edit (tambah/pindah/hapus) → Finalisasi → Daftar Proyek.
 
 Pengaturan → Data → *Reset ke kondisi awal* untuk mengulang presentasi.
 

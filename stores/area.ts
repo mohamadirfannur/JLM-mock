@@ -7,10 +7,18 @@ export interface AreaSel {
   level: "RW / Cluster" | "Kelurahan" | "Kecamatan" | "Custom";
   feature: any;
 }
-const KEY = "jlm-area-v1";
+const defs: Record<string, any> = {};
 
-/** Working area chosen in "Filter Lokasi" — shared by all map modules. */
-export const useAreaStore = defineStore("area", () => {
+/** Working area chosen in "Filter Lokasi" — kept separately for each module. */
+export function useAreaStore(mod?: string) {
+  const id = mod || moduleOfPath(useRoute().path)?.id || "asset";
+  defs[id] ||= makeStore(id);
+  return defs[id]();
+}
+
+function makeStore(mod: string) {
+  const KEY = `jlm-area-${mod}-v1`;
+  return defineStore(`area-${mod}`, () => {
   const areas = ref<AreaSel[]>([]);
   const showAll = ref(false);
   const chosen = ref(false);
@@ -34,4 +42,5 @@ export const useAreaStore = defineStore("area", () => {
   const bbox = computed<[number, number, number, number] | null>(() => (areas.value.length ? (turf.bbox(turf.featureCollection(areas.value.map((a) => a.feature))) as any) : null));
   const label = computed(() => (showAll.value || !areas.value.length ? "Semua area" : areas.value.length === 1 ? areas.value[0].name : `${areas.value.length} area dipilih`));
   return { areas, showAll, chosen, set, bbox, label };
-});
+  });
+}

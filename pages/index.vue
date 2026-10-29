@@ -14,7 +14,7 @@ function submit() {
   loading.value = true;
   setTimeout(() => {
     auth.login(email.value);
-    navigateTo("/dashboard");
+    navigateTo("/home");
   }, 650);
 }
 </script>

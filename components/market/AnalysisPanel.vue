@@ -129,7 +129,10 @@ const gradeColor = computed(() => ({ High: "#7B2FFF", Mid: "#00AACC", Low: "#F59
       </div>
     </div>
     <template v-if="a" #footer>
-      <button class="j-btn-grad w-full h-10" @click="$emit('ftth', a.id)"><UIcon name="i-lucide-zap" class="w-4 h-4" />Buat Desain FTTH untuk area ini</button>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="j-btn-outline h-10" @click="$emit('export', a.id, 'xlsx')"><UIcon name="i-lucide-file-spreadsheet" class="w-4 h-4" />Excel rumah</button>
+        <button class="j-btn-primary h-10" @click="navigateTo('/market/laporan')"><UIcon name="i-lucide-file-text" class="w-4 h-4" />Laporan</button>
+      </div>
     </template>
   </UiSidePanel>
 </template>

@@ -29,7 +29,6 @@ const hash = (s: string) => {
 /** Project register (FTTH clusters, FTTH designs, MPLS/MW backhaul between POPs). */
 export function useProjectList() {
   const asset = useAssetStore();
-  const ftth = useFtthStore();
 
   const rows = computed<ProjectRow[]>(() => {
     const out: ProjectRow[] = [];
@@ -66,32 +65,10 @@ export function useProjectList() {
         segment: cab ? `${cab.type} ${cab.cores}C · ${fmt(cab.length)} m` : "-",
         odcRef: `${odps.length} ODP · 16 HP/ODP`,
         scenario: planned ? "Rencana · Masterplan 100%" : "Skenario awal 30%",
-        link: { path: "/peta/asset", query: { project: name } },
+        link: { path: "/asset/peta", query: { project: name } },
         cluster: name,
       });
     });
-    ftth.projects
-      .filter((p) => p.status !== "Sent to Asset")
-      .forEach((p) => {
-        out.push({
-          id: "f:" + p.id,
-          name: `JLM-BDG-FTTH-${p.params.areaCode}-2026-${String(n++).padStart(3, "0")}`,
-          sub: `FTTH · Desain · ${p.name}`,
-          kind: "FTTH",
-          code: "JLM",
-          origin: p.oltLabel,
-          originName: p.name.toUpperCase().slice(0, 34),
-          priority: "P1",
-          siteType: p.oltMode === "site" ? "Existing Site" : "New Site",
-          dest: `ODC-${p.params.areaCode}-A`,
-          status: "Desain",
-          homepass: p.homes,
-          segment: "Menunggu generate",
-          odcRef: `${p.params.odpMaxDist} m · ${p.params.odpCapacity} HP/ODP`,
-          scenario: `Build awal ${p.params.penetration}%`,
-          link: { path: "/peta/ftth", query: { project: p.id } },
-        });
-      });
     // backhaul links between POPs
     const pairs: [number, number, "MPLS" | "MW"][] = [
       [0, 1, "MPLS"],
@@ -117,7 +94,7 @@ export function useProjectList() {
         segment: k === "MPLS" ? "Backbone 96C · G.652D" : "MW 23 GHz · 1 Gbps",
         odcRef: "-",
         scenario: "Operasional",
-        link: { path: "/peta/asset", query: { site: asset.sites.find((s) => s.code === A.code)?.id || "" } },
+        link: { path: "/asset/peta", query: { site: asset.sites.find((s) => s.code === A.code)?.id || "" } },
       });
     });
     return out;

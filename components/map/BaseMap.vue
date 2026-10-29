@@ -31,6 +31,7 @@ onMounted(() => {
     preserveDrawingBuffer: true,
   });
   map.value = markRaw(m);
+  (window as any).__jlmMap = m;
   m.on("load", () => {
     mapReady.value = true;
     emit("ready", m);

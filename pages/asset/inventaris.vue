@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
-useHead({ title: "Proyek Jaringan · JLM Network Planner" });
+useHead({ title: "Inventaris · Assets Management · JLM" });
+const view = ref<"proyek" | "aset">("proyek");
 const { boot, booted } = useBoot();
 const asset = useAssetStore();
 const toast = useToast();
@@ -56,11 +57,15 @@ function exportRows() {
           <p class="text-[14px] text-j-sub mt-1">Kelola aset per proyek dan cluster</p>
         </div>
         <div class="flex gap-2">
-          <NuxtLink to="/peta/asset?tool=import" class="j-btn-outline font-sans font-medium"><UIcon name="i-lucide-upload" class="w-4 h-4" />Import KML/Excel/GIS</NuxtLink>
-          <NuxtLink to="/peta/ftth?new=1" class="j-btn-teal"><UIcon name="i-lucide-circle-plus" class="w-4 h-4" />Tambah Proyek</NuxtLink>
+          <NuxtLink to="/asset/peta?tool=import" class="j-btn-outline font-sans font-medium"><UIcon name="i-lucide-upload" class="w-4 h-4" />Import KML/Excel/GIS</NuxtLink>
+          <NuxtLink to="/asset/peta?tool=add_site" class="j-btn-teal"><UIcon name="i-lucide-circle-plus" class="w-4 h-4" />Tambah Asset</NuxtLink>
         </div>
       </div>
-      <div class="j-card p-4">
+      <div class="flex gap-2"><button v-for="v in [['proyek', 'Proyek Jaringan'], ['aset', 'Sitepoint, Aset & Kabel']]" :key="v[0]" class="j-chip" :class="view === v[0] && 'j-chip-on'" @click="view = v[0] as any">{{ v[1] }}</button></div>
+      <div v-if="view === 'aset'" class="j-card h-[calc(100vh-260px)] overflow-hidden">
+        <AssetTable :full="true" @close="view = 'proyek'" @fullscreen="() => {}" @select="(k, id) => navigateTo({ path: '/asset/peta', query: k === 'site' ? { site: id } : { cable: id } })" />
+      </div>
+      <div v-else class="j-card p-4">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <div><h3 class="j-title text-[16px]">Daftar Proyek Jaringan</h3><p class="text-[13px] text-j-sub">Data Aset FTTH / MPLS</p></div>
           <div class="flex items-center gap-2">
@@ -92,7 +97,7 @@ function exportRows() {
                 <td class="j-td" @click.stop>
                   <div class="flex justify-end gap-1.5">
                     <button class="w-7 h-7 rounded-[6px] border border-j-cyan/40 bg-j-cyan/[0.08] text-j-cyan flex items-center justify-center" title="Detail" @click="detail = r"><UIcon name="i-lucide-square-pen" class="w-3.5 h-3.5" /></button>
-                    <UDropdown :items="[[{ label: 'Buka di peta', icon: 'i-lucide-map', click: () => navigateTo(r.link) }, { label: 'BOQ & BOM', icon: 'i-lucide-file-spreadsheet', click: () => navigateTo({ path: '/boq-bom', query: { project: r.cluster || r.id } }) }]]">
+                    <UDropdown :items="[[{ label: 'Buka di peta', icon: 'i-lucide-map', click: () => navigateTo(r.link) }, { label: 'BOQ & BOM', icon: 'i-lucide-file-spreadsheet', click: () => navigateTo({ path: '/asset/boq-bom', query: { project: r.cluster || r.id } }) }]]">
                       <button class="w-7 h-7 rounded-[6px] border border-j-line flex items-center justify-center text-j-sub"><UIcon name="i-lucide-more-vertical" class="w-3.5 h-3.5" /></button>
                     </UDropdown>
                   </div>
@@ -133,7 +138,7 @@ function exportRows() {
           <div><p class="text-j-sub mb-1">Status</p><span :class="statTag(detail.status)">{{ detail.status }}</span><p class="text-j-sub mt-1">{{ detail.scenario }}</p></div>
         </div>
         <div class="flex gap-2 mt-5">
-          <button class="w-11 h-11 rounded-[10px] border border-j-line flex items-center justify-center" title="BOQ & BOM" @click="navigateTo({ path: '/boq-bom', query: { project: detail.cluster || detail.id } })"><UIcon name="i-lucide-file-spreadsheet" class="w-4 h-4" /></button>
+          <button class="w-11 h-11 rounded-[10px] border border-j-line flex items-center justify-center" title="BOQ & BOM" @click="navigateTo({ path: '/asset/boq-bom', query: { project: detail.cluster || detail.id } })"><UIcon name="i-lucide-file-spreadsheet" class="w-4 h-4" /></button>
           <button class="w-11 h-11 rounded-[10px] border border-j-line flex items-center justify-center" title="Export" @click="exportRows"><UIcon name="i-lucide-upload" class="w-4 h-4" /></button>
           <button class="j-btn-primary flex-1 h-11 text-[14px]" @click="navigateTo(detail.link)">Add to Map</button>
         </div>

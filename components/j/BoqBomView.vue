@@ -4,8 +4,7 @@ import { runFtthDesign, DEFAULT_PARAMS, PRICE, type FtthResult } from "~/utils/f
 import { nearestPop } from "~/utils/jlmSites";
 import * as turf from "@turf/turf";
 
-definePageMeta({ layout: "app" });
-useHead({ title: "BOQ & BOM · JLM Network Planner" });
+const props = defineProps<{ mode: "asset" | "ftth" }>();
 const route = useRoute();
 const { boot, booted, geo } = useBoot();
 const asset = useAssetStore();
@@ -17,9 +16,8 @@ onMounted(boot);
 const scopes = computed(() => {
   if (!booted.value) return [];
   const names = [...new Set(asset.sites.filter((s) => s.project).map((s) => s.project!))];
-  const inv = names.map((n) => ({ id: "c:" + n, name: n, kind: asset.sites.filter((s) => s.project === n).every((s) => s.status === "Planned") ? "Rencana" : "Terpasang" }));
-  const des = ftth.projects.filter((p) => p.status !== "Sent to Asset" && p.status !== "Draft").map((p) => ({ id: "f:" + p.id, name: p.name, kind: "Desain" }));
-  return [...inv, ...des];
+  if (props.mode === "asset") return names.map((n) => ({ id: "c:" + n, name: n, kind: asset.sites.filter((s) => s.project === n).every((s) => s.status === "Planned") ? "Rencana" : "Terpasang" }));
+  return ftth.projects.filter((p) => p.status !== "Draft").map((p) => ({ id: "f:" + p.id, name: p.name, kind: p.status === "As-built" ? "As-built" : "Desain" }));
 });
 const scope = ref("");
 watch(
@@ -31,7 +29,7 @@ watch(
   },
   { immediate: true },
 );
-const scen = ref(100);
+const scen = ref(props.mode === "asset" ? 100 : 30);
 const cur = computed(() => scopes.value.find((s) => s.id === scope.value));
 
 const cache = new Map<string, FtthResult>();
@@ -93,6 +91,7 @@ const rows = computed(() => {
       const inst = has ? Math.round(installed.value[i.code]) : 0;
       const diff = inst - q;
       const status = !has ? (isInstalledScope.value ? "Belum dicatat" : "Rencana") : Math.abs(diff) <= Math.max(1, q * 0.03) ? "Sesuai" : diff < 0 ? `Kurang ${fmt(-diff)}` : `Lebih ${fmt(diff)}`;
+      if (props.mode === "ftth") return { ...i, q: i.qtyPlan, inst: i.qty, diff: i.qty - i.qtyPlan, has: true, status: i.qty === i.qtyPlan ? "Full build" : `Build ${scen.value}%`, total: i.qtyPlan * i.price };
       return { ...i, q, inst, diff, has, status, total: q * i.price };
     });
 });
@@ -146,7 +145,11 @@ async function onTemplate(e: Event) {
   asset.log("Import", f.name, `Template BOQ procurement diunggah (${n} baris)`);
   toast.add({ title: "Template BOQ diterapkan", description: `${f.name} · ${n} baris kolom dipetakan`, icon: "i-lucide-file-check-2" });
 }
-const history = computed(() => asset.activity.slice(0, 5));
+const history = computed(() =>
+  props.mode === "asset"
+    ? asset.activity.slice(0, 5)
+    : ftth.jobs.slice(0, 5).map((j) => ({ id: j.id, action: j.status === "inserted" ? "Create" : "Sync", target: j.file, detail: `${j.source} · ${j.phase}`, user: j.user, at: j.createdAt })),
+);
 const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i-lucide-check", Move: "i-lucide-move", Delete: "i-lucide-triangle-alert", Import: "i-lucide-upload", Sync: "i-lucide-refresh-cw" };
 </script>
 
@@ -155,8 +158,8 @@ const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i
     <div class="max-w-[1340px] mx-auto px-6 py-6 space-y-4">
       <div class="flex items-end justify-between">
         <div>
-          <div class="flex items-center gap-3"><h1 class="j-title text-[24px]">BOQ & BOM</h1><span class="j-tag-cyan font-display font-bold">Laporan Aktual Material</span></div>
-          <p class="text-[14px] text-j-sub mt-1">Bill of Quantity & Bill of Material · Rencana vs Terpasang · Scope per RW/Cluster</p>
+          <div class="flex items-center gap-3"><h1 class="j-title text-[24px]">BOQ & BOM</h1><span class="j-tag-cyan font-display font-bold">{{ mode === "asset" ? "Laporan Aktual Material" : "Desain FTTH" }}</span></div>
+          <p class="text-[14px] text-j-sub mt-1">{{ mode === "asset" ? "Bill of Quantity & Bill of Material · Rencana vs Terpasang · Scope per RW/Cluster" : "Estimasi material & jasa dari hasil desain FTTH · Masterplan vs build awal" }}</p>
         </div>
         <div class="flex gap-2">
           <label class="j-btn-outline font-sans font-medium cursor-pointer"><UIcon name="i-lucide-file-up" class="w-4 h-4" />Import Template<input type="file" class="hidden" accept=".xlsx,.xls,.csv" @change="onTemplate" /></label>
@@ -167,6 +170,7 @@ const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i
       </div>
 
       <div v-if="!booted" class="j-card p-16 text-center"><UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-j-cyan" /></div>
+      <div v-else-if="!scopes.length" class="j-card p-16 text-center"><p class="j-title text-[16px]">Belum ada desain</p><p class="text-[13px] text-j-sub mt-1">Buat desain dan klik <b>Generate &amp; Insert to Cable</b> di Peta FTTH.</p><NuxtLink to="/ftth?new=1" class="j-btn-primary mt-4">Desain Baru</NuxtLink></div>
       <template v-else>
         <div class="grid grid-cols-[1.4fr_0.8fr_1fr] gap-4">
           <div class="j-card p-4">
@@ -177,7 +181,7 @@ const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i
           </div>
           <div class="j-card p-4">
             <p class="j-label text-j-sub mb-2">Skenario</p>
-            <div class="flex flex-wrap gap-1.5"><button v-for="v in [100, 30, 50]" :key="v" class="h-7 px-3 rounded-[6px] text-[12px] border" :class="scen === v ? 'bg-j-cyan/[0.1] border-j-cyan font-display font-bold' : 'border-j-line text-j-sub'" @click="scen = v">{{ v === 100 ? "Masterplan 100%" : `Skenario ${v}%` }}</button></div>
+            <div class="flex flex-wrap gap-1.5"><button v-for="v in (mode === 'asset' ? [100, 30, 50] : [30, 50, 100])" :key="v" class="h-7 px-3 rounded-[6px] text-[12px] border" :class="scen === v ? 'bg-j-cyan/[0.1] border-j-cyan font-display font-bold' : 'border-j-line text-j-sub'" @click="scen = v">{{ v === 100 ? "Masterplan 100%" : `Skenario ${v}%` }}</button></div>
           </div>
           <div class="j-card p-4">
             <p class="j-label text-j-sub mb-2">Template BOQ</p>
@@ -191,19 +195,19 @@ const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i
         <div class="grid grid-cols-[1fr_300px] gap-4">
           <div class="j-card p-4 min-w-0">
             <div class="flex items-start justify-between">
-              <div><h3 class="j-title text-[16px]">BOQ — Rencana vs Terpasang</h3><p class="text-[12px] text-j-sub">Scope: {{ cur?.name }} · {{ scen === 100 ? "Masterplan 100%" : `Skenario ${scen}%` }} · {{ fmt(plan?.summary.homes) }} homepass</p></div>
+              <div><h3 class="j-title text-[16px]">{{ mode === "asset" ? "BOQ — Rencana vs Terpasang" : "BOQ / BOM Desain" }}</h3><p class="text-[12px] text-j-sub">Scope: {{ cur?.name }} · {{ scen === 100 ? "Masterplan 100%" : `Skenario ${scen}%` }} · {{ fmt(plan?.summary.homes) }} homepass</p></div>
               <div class="flex gap-2"><button class="j-btn-teal j-btn-sm font-sans font-normal" @click="exportExcel">Export Excel</button><button class="j-btn-outline j-btn-sm font-sans font-normal" @click="exportPdf">Export PDF</button></div>
             </div>
             <div class="overflow-x-auto thin-scrollbar mt-3">
               <table class="w-full min-w-[820px]">
-                <thead class="bg-j-bg"><tr><th class="j-th">Material</th><th class="j-th">Satuan</th><th class="j-th text-right">Qty Rencana</th><th class="j-th text-right">Qty Pasang</th><th class="j-th text-right">Selisih</th><th class="j-th text-right">Harga Satuan (IDR)</th><th class="j-th text-right">Total Rencana</th><th class="j-th">Status</th></tr></thead>
+                <thead class="bg-j-bg"><tr><th class="j-th">Material</th><th class="j-th">Satuan</th><th class="j-th text-right">{{ mode === "asset" ? "Qty Rencana" : "Qty Plan 100%" }}</th><th class="j-th text-right">{{ mode === "asset" ? "Qty Pasang" : `Qty Build ${scen}%` }}</th><th class="j-th text-right">{{ mode === "asset" ? "Selisih" : "Tahap berikut" }}</th><th class="j-th text-right">Harga Satuan (IDR)</th><th class="j-th text-right">Total Rencana</th><th class="j-th">Status</th></tr></thead>
                 <tbody>
                   <tr v-for="r in rows" :key="r.code">
                     <td class="j-td"><p class="font-medium">{{ r.item }}</p><p class="text-[11px] text-j-sub">{{ note(r.code) }}</p></td>
                     <td class="j-td text-j-sub">{{ r.unit }}</td>
                     <td class="j-td text-right font-bold">{{ fmt(r.q) }}</td>
                     <td class="j-td text-right font-bold text-j-cyan">{{ r.has ? fmt(r.inst) : "–" }}</td>
-                    <td class="j-td text-right font-bold" :class="r.diff < 0 ? 'text-j-amber' : 'text-j-teal'">{{ r.has ? fmt(r.diff) : "–" }}</td>
+                    <td class="j-td text-right font-bold" :class="r.diff < 0 ? 'text-j-amber' : 'text-j-teal'">{{ r.has ? fmt(mode === "asset" ? r.diff : -r.diff) : "–" }}</td>
                     <td class="j-td text-right text-j-sub">{{ fmt(r.price) }}</td>
                     <td class="j-td text-right font-bold text-j-blue">{{ fmt(r.total) }}</td>
                     <td class="j-td"><span :class="stTag(r.status)">{{ r.status }}</span></td>
@@ -220,14 +224,14 @@ const HIST_ICON: Record<string, string> = { Create: "i-lucide-check", Update: "i
             <div class="j-card p-4">
               <div class="flex items-center justify-between"><h3 class="j-title text-[15px]">BOM Ringkasan</h3><span class="j-tag-teal">{{ cur?.kind }}</span></div>
               <div class="mt-3 space-y-2 text-[12px]">
-                <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-[2px] bg-j-cyan" />Terpasang</span><b class="text-j-cyan">{{ totals.pct }}%</b></div>
+                <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-[2px] bg-j-cyan" />{{ mode === "asset" ? "Terpasang" : "Build awal" }}</span><b class="text-j-cyan">{{ totals.pct }}%</b></div>
                 <div class="h-1.5 bg-j-soft rounded-full overflow-hidden"><div class="h-full bg-j-cyan" :style="{ width: totals.pct + '%' }" /></div>
-                <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-[2px] bg-j-amber" />Sisa Rencana</span><b class="text-j-amber">{{ 100 - totals.pct }}%</b></div>
+                <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-[2px] bg-j-amber" />{{ mode === "asset" ? "Sisa Rencana" : "Tahap berikutnya" }}</span><b class="text-j-amber">{{ 100 - totals.pct }}%</b></div>
                 <div class="h-1.5 bg-j-soft rounded-full overflow-hidden"><div class="h-full bg-j-amber" :style="{ width: 100 - totals.pct + '%' }" /></div>
               </div>
               <div class="mt-4 space-y-1.5 text-[12px] border-t border-j-line pt-3">
                 <div class="flex justify-between"><span class="text-j-sub">Total Rencana (IDR)</span><b>{{ idrShort(totals.plan) }}</b></div>
-                <div class="flex justify-between"><span class="text-j-sub">Realisasi (IDR)</span><b>{{ idrShort(totals.real) }}</b></div>
+                <div class="flex justify-between"><span class="text-j-sub">{{ mode === "asset" ? "Realisasi (IDR)" : "Build awal (IDR)" }}</span><b>{{ idrShort(totals.real) }}</b></div>
                 <div class="flex justify-between"><span class="text-j-sub">Selisih (IDR)</span><b class="text-j-amber">{{ idrShort(totals.plan - totals.real) }}</b></div>
               </div>
             </div>

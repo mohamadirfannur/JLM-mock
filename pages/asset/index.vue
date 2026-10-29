@@ -1,9 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
-useHead({ title: "Dashboard · JLM Network Planner" });
+useHead({ title: "Dashboard · Assets Management · JLM" });
 const { boot, booted } = useBoot();
 const asset = useAssetStore();
-const ftth = useFtthStore();
 onMounted(boot);
 
 const countSite = (t: string) => asset.sites.filter((s) => s.type === t).length;
@@ -13,8 +12,7 @@ const aktif = computed(() => ({ OLT: countAsset("OLT"), Switch: countAsset("Swit
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
 const homepass = computed(() => {
   const inst = asset.assets.filter((a) => a.type === "ODP").reduce((s, a) => s + Number(a.extra?.Homepass || 0), 0);
-  const plan = ftth.projects.filter((p) => p.status !== "Sent to Asset").reduce((s, p) => s + (p.homes || 0), 0);
-  return inst + plan;
+  return inst;
 });
 const clusters = computed(() => new Set(asset.sites.filter((s) => s.project).map((s) => s.project)).size);
 const quality = computed(() => {
@@ -79,7 +77,6 @@ const projects = computed(() => {
     const status = p.planned === p.total ? "Belum" : prog >= 80 ? "Selesai" : prog >= 40 ? "On-going" : "Awal";
     return { ...p, prog, statusLabel: status };
   });
-  ftth.projects.filter((p) => p.status !== "Sent to Asset").forEach((p) => out.push({ name: p.name, hp: p.homes, used: 0, status: "Design", planned: 0, total: 0, prog: 0, statusLabel: "Desain" }));
   return out;
 });
 const ppage = ref(1);
@@ -105,13 +102,13 @@ const kmFmt = (v: number) => (v >= 1 ? `${fmt(v, 1)} km` : `${fmt(v * 1000)} m`)
         <div>
           <div class="flex items-center gap-3">
             <h1 class="j-title text-[24px]">Dashboard</h1>
-            <span class="j-tag-cyan font-display font-bold">JLM Network Planner</span>
+            <span class="j-tag-cyan font-display font-bold">Assets Management</span>
           </div>
           <p class="text-[14px] text-j-sub mt-1">Kelola aset jaringan FTTH/MPLS</p>
         </div>
         <div class="flex gap-2">
-          <NuxtLink to="/peta/asset?tool=import" class="j-btn-outline font-sans font-medium"><UIcon name="i-lucide-upload" class="w-4 h-4" />Import KML/Excel/GIS</NuxtLink>
-          <NuxtLink to="/peta/asset?tool=add_site" class="j-btn-primary"><UIcon name="i-lucide-plus" class="w-4 h-4" />Tambah Aset</NuxtLink>
+          <NuxtLink to="/asset/peta?tool=import" class="j-btn-outline font-sans font-medium"><UIcon name="i-lucide-upload" class="w-4 h-4" />Import KML/Excel/GIS</NuxtLink>
+          <NuxtLink to="/asset/peta?tool=add_site" class="j-btn-primary"><UIcon name="i-lucide-plus" class="w-4 h-4" />Tambah Aset</NuxtLink>
         </div>
       </div>
 
@@ -134,7 +131,7 @@ const kmFmt = (v: number) => (v >= 1 ? `${fmt(v, 1)} km` : `${fmt(v * 1000)} m`)
           <div class="j-card p-4">
             <div class="flex items-center gap-2 mb-3"><span class="w-8 h-8 rounded-[8px] bg-j-cyan/[0.08] text-j-cyan flex items-center justify-center"><UIcon name="i-lucide-map-pin" class="w-4 h-4" /></span><p class="j-label">Coverage FTTH</p></div>
             <p class="font-display font-bold text-[28px] leading-none">{{ fmt(homepass) }}</p>
-            <p class="text-[12px] text-j-sub mt-1">homepass dalam masterplan 100%</p>
+            <p class="text-[12px] text-j-sub mt-1">homepass tercover jaringan terpasang</p>
             <div class="grid grid-cols-3 gap-2 mt-4">
               <div><p class="text-[10px] text-j-sub">Tahap 1 (30%)</p><p class="text-[14px] font-semibold mt-1">{{ fmt(Math.round(homepass * 0.3)) }} HP</p></div>
               <div><p class="text-[10px] text-j-sub">Tahap 2 (50%)</p><p class="text-[14px] font-semibold mt-1">{{ fmt(Math.round(homepass * 0.5)) }} HP</p></div>
@@ -159,13 +156,13 @@ const kmFmt = (v: number) => (v >= 1 ? `${fmt(v, 1)} km` : `${fmt(v * 1000)} m`)
             <div class="j-card p-4">
               <div class="flex items-start justify-between">
                 <div><h3 class="j-title text-[16px]">Aset Jaringan</h3><p class="text-[13px] text-j-sub">Aset pasif & aktif</p></div>
-                <div class="flex gap-2"><NuxtLink to="/proyek" class="j-btn-outline j-btn-sm font-sans font-normal">Filter</NuxtLink><NuxtLink to="/peta/asset?tool=add_site" class="j-btn-teal j-btn-sm font-sans font-normal">+ Tambah</NuxtLink></div>
+                <div class="flex gap-2"><NuxtLink to="/asset/inventaris" class="j-btn-outline j-btn-sm font-sans font-normal">Inventaris</NuxtLink><NuxtLink to="/asset/peta?tool=add_site" class="j-btn-teal j-btn-sm font-sans font-normal">+ Tambah</NuxtLink></div>
               </div>
               <div class="flex gap-2 mt-3"><button v-for="t in ['Semua', 'Pasif', 'Aktif', 'OLT', 'Kabel']" :key="t" class="j-chip" :class="tab === t && 'j-chip-on'" @click="tab = t">{{ t }}</button></div>
               <table class="w-full mt-2">
                 <thead><tr><th class="j-th">Kode Aset</th><th class="j-th">Kategori</th><th class="j-th">Lokasi / Cluster</th><th class="j-th">Status</th><th class="j-th">Kondisi</th><th class="j-th">Update</th></tr></thead>
                 <tbody>
-                  <tr v-for="r in rows.slice((page - 1) * PER, page * PER)" :key="r.id" class="hover:bg-j-bg cursor-pointer" @click="navigateTo({ path: '/peta/asset', query: r.kind === 'site' ? { site: r.id } : { cable: r.id } })">
+                  <tr v-for="r in rows.slice((page - 1) * PER, page * PER)" :key="r.id" class="hover:bg-j-bg cursor-pointer" @click="navigateTo({ path: '/asset/peta', query: r.kind === 'site' ? { site: r.id } : { cable: r.id } })">
                     <td class="j-td font-medium">{{ r.code }}</td>
                     <td class="j-td"><span :class="typeTag(r.type)" class="min-w-[90px]">{{ r.type }}</span></td>
                     <td class="j-td text-j-sub max-w-[220px] truncate">{{ r.loc }}</td>
@@ -181,7 +178,7 @@ const kmFmt = (v: number) => (v >= 1 ? `${fmt(v, 1)} km` : `${fmt(v * 1000)} m`)
             <div class="j-card p-4">
               <div class="flex items-start justify-between">
                 <div><h3 class="j-title text-[16px]">Proyek per RW / Cluster</h3><p class="text-[13px] text-j-sub">Status pembangunan FTTH per area</p></div>
-                <NuxtLink to="/proyek" class="j-btn-teal j-btn-sm font-sans font-normal">Lihat Semua <UIcon name="i-lucide-arrow-right" class="w-3.5 h-3.5" /></NuxtLink>
+                <NuxtLink to="/asset/inventaris" class="j-btn-teal j-btn-sm font-sans font-normal">Lihat Semua <UIcon name="i-lucide-arrow-right" class="w-3.5 h-3.5" /></NuxtLink>
               </div>
               <table class="w-full mt-2">
                 <thead><tr><th class="j-th">Proyek / Cluster</th><th class="j-th">Homepass</th><th class="j-th">Terpasang</th><th class="j-th">Progres</th><th class="j-th">Status</th></tr></thead>
@@ -212,7 +209,7 @@ const kmFmt = (v: number) => (v >= 1 ? `${fmt(v, 1)} km` : `${fmt(v * 1000)} m`)
             <div class="j-card p-4">
               <div class="flex items-center justify-between mb-3"><h3 class="j-title text-[16px]">Laporan Segmen Kabel</h3><span class="text-[11px] px-2 py-0.5 rounded-full border border-j-line text-j-blue">Terbaru</span></div>
               <div class="space-y-2">
-                <NuxtLink v-for="s in segs.slice((spage - 1) * 5, spage * 5)" :key="s.id" :to="{ path: '/peta/asset', query: { cable: s.id } }" class="block border border-j-line rounded-[8px] px-3 py-2.5 hover:border-j-cyan">
+                <NuxtLink v-for="s in segs.slice((spage - 1) * 5, spage * 5)" :key="s.id" :to="{ path: '/asset/peta', query: { cable: s.id } }" class="block border border-j-line rounded-[8px] px-3 py-2.5 hover:border-j-cyan">
                   <div class="flex items-center justify-between gap-2"><span class="text-[12px] text-j-sub truncate">{{ s.label }}</span><b class="text-[12px] text-j-teal shrink-0">{{ kmFmt(s.km) }}</b></div>
                   <div class="h-1 rounded-full bg-j-soft mt-2 w-[120px] overflow-hidden"><div class="h-full bg-j-cyan rounded-full" :style="{ width: Math.min(100, s.inst * 100) + '%' }" /></div>
                 </NuxtLink>

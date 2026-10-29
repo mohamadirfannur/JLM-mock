@@ -6,7 +6,7 @@ import * as turf from "@turf/turf";
 export interface FtthEdit {
   layer: string;
   code: string;
-  op: "move" | "delete";
+  op: "move" | "delete" | "add";
   coord?: [number, number];
 }
 export interface FtthProject {
@@ -152,6 +152,12 @@ export const useFtthStore = defineStore("ftth", () => {
     for (const e of edits) {
       const fc = r.layers[e.layer];
       if (!fc) continue;
+      if (e.op === "add" && e.coord) {
+        const near = (L: string) => [...r.layers[L].features].sort((a: any, b: any) => Math.hypot(a.geometry.coordinates[0] - e.coord![0], a.geometry.coordinates[1] - e.coord![1]) - Math.hypot(b.geometry.coordinates[0] - e.coord![0], b.geometry.coordinates[1] - e.coord![1]))[0];
+        const props = e.layer === "odp" ? { code: e.code, odc: near("odc")?.properties.code, capacity: 16, used: 0, idle: 16, maxDrop: 0, splitter: "1:16", manual: true } : e.layer === "poles" ? { code: e.code, type: "T7 1-Stage", manual: true } : { code: e.code, reason: "Tambahan manual", manual: true };
+        fc.features.push({ type: "Feature", geometry: { type: "Point", coordinates: e.coord }, properties: props });
+        continue;
+      }
       if (e.op === "delete") fc.features = fc.features.filter((f: any) => f.properties.code !== e.code);
       if (e.op === "move" && e.coord) {
         const f = fc.features.find((x: any) => x.properties.code === e.code);
@@ -197,7 +203,7 @@ export const useFtthStore = defineStore("ftth", () => {
   function addEdit(pid: string, e: FtthEdit) {
     const p = projects.value.find((x) => x.id === pid);
     if (!p) return;
-    p.edits = [...p.edits.filter((x) => !(x.code === e.code && x.layer === e.layer && x.op === e.op)), e];
+    p.edits = e.op === "add" ? [...p.edits, e] : [...p.edits.filter((x) => !(x.code === e.code && x.layer === e.layer && x.op === e.op)), e];
     p.updatedAt = nowStr();
   }
   const byId = (pid: string) => projects.value.find((p) => p.id === pid);

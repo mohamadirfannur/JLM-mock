@@ -11,9 +11,8 @@ const { map, setData, addLayer, removeSource, setVisible, fitTo } = useMap();
 const layers = useLayers();
 const draw = useDraw();
 const ftth = useFtthStore();
-const asset = useAssetStore();
+const asset = useAssetStore(); // read-only: existing network as design context
 const area = useAreaStore();
-const handoff = useHandoffStore();
 const toast = useToast();
 
 const EXTENT: [number, number, number, number] = [107.67, -6.975, 107.72, -6.935];
@@ -21,7 +20,6 @@ const leftOpen = ref(true);
 const leftTab = ref<"layer" | "proyek">("proyek");
 const right = ref<"" | "queue" | "result" | "standar">("queue");
 const queueTab = ref<"process" | "done">("process");
-const showSwitch = ref(false);
 const filterOpen = ref(false);
 const filterRef = ref<any>(null);
 const wizardOpen = ref(false);
@@ -169,13 +167,7 @@ async function onReady() {
   });
 
   // entry flow
-  if (route.query.from === "market" && handoff.ftthAoi) {
-    wizardPreset.value = handoff.ftthAoi;
-    setData("ftth-preview", handoff.ftthAoi.feature);
-    fitTo(turf.bbox(handoff.ftthAoi.feature) as any, 140);
-    handoff.ftthAoi = null;
-    wizardOpen.value = true;
-  } else if (route.query.new) openWizard();
+  if (route.query.new) openWizard();
   const inserted = ftth.jobs.filter((j) => j.status === "inserted").map((j) => j.projectId);
   const want = route.query.project ? [String(route.query.project)] : [];
   const ids = [...new Set([...ftth.active.filter((x) => inserted.includes(x)), ...inserted.slice(0, 1), ...want])].filter((id) => ftth.byId(id));
@@ -194,6 +186,7 @@ const clickable = () => ftth.active.flatMap((pid) => ["olt", "odc", "odp", "jc",
 const editing = ref<string | null>(null);
 const selected = ref<{ pid: string; layer: string; props: any; coord: [number, number] } | null>(null);
 const moving = ref(false);
+const addMode = ref<"" | "odp" | "poles" | "jc">("");
 const pop = ref<{ coord: [number, number]; title: string; rows: [string, any][] } | null>(null);
 function onMapClick(e: any) {
   if (draw.active.value) return;
@@ -204,6 +197,16 @@ function onMapClick(e: any) {
     rerun(selected.value.pid);
     toast.add({ title: "Posisi diperbarui", description: selected.value.props.code, icon: "i-lucide-move" });
     selected.value = null;
+    return;
+  }
+  if (addMode.value && editing.value) {
+    const pid = editing.value;
+    const p = ftth.byId(pid)!;
+    const n = p.edits.filter((x) => x.op === "add" && x.layer === addMode.value).length + 1;
+    const code = addMode.value === "odp" ? `ODP-${p.params.areaCode}-M${String(n).padStart(2, "0")}` : addMode.value === "poles" ? `TP-${p.params.areaCode}-M${String(n).padStart(3, "0")}` : `JC-${p.params.areaCode}-M${n}`;
+    ftth.addEdit(pid, { layer: addMode.value, code, op: "add", coord: [e.lngLat.lng, e.lngLat.lat] });
+    rerun(pid);
+    toast.add({ title: "Ditambahkan ke desain", description: code, icon: "i-lucide-plus" });
     return;
   }
   const f = m.queryRenderedFeatures(e.point, { layers: clickable() })[0];
@@ -242,6 +245,7 @@ function deleteSelected() {
   selected.value = null;
 }
 function toggleEdit(pid: string) {
+  addMode.value = "";
   editing.value = editing.value === pid ? null : pid;
   selected.value = null;
   moving.value = false;
@@ -396,13 +400,12 @@ async function exportPdf(p: any, r: any) {
   autoTable(doc, { head: [["Grup", "Item", "Qty", "Satuan", "Harga", "Total"]], body: r.boq.flatMap((g: any) => g.items.map((i: any) => [g.group, i.item, fmt(i.qty), i.unit, fmt(i.price), fmt(i.total)])), theme: "striped", headStyles: { fillColor: [0, 170, 204] }, styles: { fontSize: 7 } });
   doc.save(`${p.name.replace(/[^A-Za-z0-9]+/g, "_")}_Laporan.pdf`);
 }
-function sendToAsset() {
+function finalize() {
   const pid = ftth.focusId;
   if (!pid) return;
   const p = ftth.byId(pid)!;
-  const d = asset.importDesign(ftth.results[pid], p.name);
-  ftth.update(pid, { status: "Sent to Asset" });
-  toast.add({ title: "Terkirim ke inventaris aset", description: `${d.sites.length} sitepoint · ${d.assets.length} aset · ${d.cables.length} segmen kabel (status Rencana)`, icon: "i-lucide-server", color: "green", timeout: 8000, actions: [{ label: "Buka di Asset Management", click: () => navigateTo({ path: "/peta/asset", query: { project: p.name } }) }] });
+  ftth.update(pid, { status: "As-built" });
+  toast.add({ title: "Desain difinalisasi", description: `${p.name} ditandai As-built · siap untuk pelaksanaan`, icon: "i-lucide-badge-check", color: "green" });
 }
 watch([leftOpen, right], () => nextTick(() => setTimeout(() => map.value?.resize(), 10)));
 onBeforeUnmount(() => {
@@ -426,7 +429,7 @@ const statusLbl: Record<string, string> = { Draft: "Diproses", Designed: "Desain
 <template>
   <div class="absolute inset-0 flex flex-col">
     <div class="h-12 bg-white border-b border-j-line flex items-center px-4 gap-4 shrink-0 z-20">
-      <span class="j-tag-cyan font-display font-bold !h-6">FTTH AUTO-DESIGN</span>
+      <span class="j-tag-cyan font-display font-bold !h-6">FTTH MAPPING · AUTO-DESIGN</span>
       <div class="flex items-center gap-4 text-[13px] overflow-x-auto hide-scrollbar">
         <span class="whitespace-nowrap">Homepass masterplan <b class="text-j-blue">{{ fmt(stat.hp) }}</b></span><span class="w-px h-4 bg-j-line" />
         <span class="flex items-center gap-2 whitespace-nowrap"><span class="w-2 h-2 rounded-full border-2 border-j-purple" />ODP rencana <b class="text-j-purple">{{ fmt(stat.odp) }}</b></span><span class="w-px h-4 bg-j-line" />
@@ -474,9 +477,7 @@ const statusLbl: Record<string, string> = { Draft: "Diproses", Designed: "Desain
           <UTooltip text="Hasil desain & BOQ" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'result' && 'j-icon-btn-on'" @click="right = right === 'result' ? '' : 'result'"><UIcon name="i-lucide-chart-column" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Standar desain JLM" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="right === 'standar' && 'j-icon-btn-on'" @click="right = right === 'standar' ? '' : 'standar'"><UIcon name="i-lucide-ruler" class="w-5 h-5" /></button></UTooltip>
           <UTooltip text="Processing queue" :popper="{ placement: 'left' }"><button class="j-icon-btn relative" :class="right === 'queue' && 'j-icon-btn-on'" @click="right = right === 'queue' ? '' : 'queue'"><UIcon name="i-lucide-list-checks" class="w-5 h-5" /><span v-if="stat.jobs" class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-j-amber text-white text-[9px] font-bold flex items-center justify-center">{{ stat.jobs }}</span></button></UTooltip>
-          <UTooltip text="Fitur lain" :popper="{ placement: 'left' }"><button class="j-icon-btn" :class="showSwitch && 'j-icon-btn-on'" @click="showSwitch = !showSwitch"><UIcon name="i-lucide-layout-grid" class="w-5 h-5" /></button></UTooltip>
         </div>
-        <div v-if="showSwitch" class="absolute top-4 right-[72px] z-20"><JmapSwitcher @close="showSwitch = false" /></div>
         <div class="absolute bottom-10 right-4 z-10"><JmapControls :extent="EXTENT" /></div>
         <div class="absolute bottom-10 left-4 z-10"><JmapLegend :items="legend" /></div>
         <div class="absolute bottom-2 right-4 z-10"><JmapCoords /></div>
@@ -488,7 +489,11 @@ const statusLbl: Record<string, string> = { Draft: "Diproses", Designed: "Desain
         </div>
         <div v-if="editing" class="absolute top-4 left-1/2 -translate-x-1/2 z-20 j-panel px-4 py-2.5 flex items-center gap-3 text-[13px]">
           <UIcon name="i-lucide-square-pen" class="w-4 h-4 text-j-cyan" />
-          <span v-if="!selected">Edit desain — klik ODP / ODC / tiang / JC</span>
+          <span v-if="!selected && !addMode">Edit desain — klik ODP / ODC / tiang / JC, atau tambah manual:</span>
+          <span v-else-if="addMode" class="text-j-cyan font-medium">Klik peta untuk menambah {{ addMode === "odp" ? "ODP" : addMode === "poles" ? "tiang" : "JC" }}</span>
+          <template v-if="!selected">
+            <button v-for="a in [['odp', 'ODP'], ['poles', 'Tiang'], ['jc', 'JC']]" :key="a[0]" class="j-btn-sm j-btn" :class="addMode === a[0] ? 'bg-j-cyan text-white' : 'bg-j-bg text-j-ink'" @click="addMode = addMode === a[0] ? '' : (a[0] as any)"><UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />{{ a[1] }}</button>
+          </template>
           <template v-else>
             <b>{{ selected.props.code }}</b>
             <button class="j-btn-primary j-btn-sm" @click="moving = true"><UIcon name="i-lucide-move" class="w-3.5 h-3.5" />{{ moving ? "Klik lokasi baru…" : "Pindah" }}</button>
@@ -544,13 +549,13 @@ const statusLbl: Record<string, string> = { Draft: "Diproses", Designed: "Desain
                 <button v-if="j.status === 'processing'" class="j-btn j-btn-sm bg-j-amber/10 text-[#B45309]" @click="j.status = 'paused'">Pause</button>
                 <button v-else-if="j.status === 'paused'" class="j-btn j-btn-sm bg-j-cyan/10 text-j-cyan" @click="(j.status = 'processing'), ftth.runQueue()">Resume</button>
                 <button v-else-if="j.status === 'completed'" class="j-btn j-btn-sm bg-j-purple/10 text-j-purple" @click="insertJob(j)">Review</button>
-                <button v-else class="j-btn j-btn-sm bg-j-purple/10 text-j-purple" @click="navigateTo({ path: '/boq-bom', query: { project: j.projectId } })">BOQ & BOM</button>
+                <button v-else class="j-btn j-btn-sm bg-j-purple/10 text-j-purple" @click="navigateTo({ path: '/ftth/boq-bom', query: { project: j.projectId } })">BOQ & BOM</button>
               </div>
             </div>
             <p v-if="!(queueTab === 'process' ? processing : done).length" class="text-center text-[12px] text-j-sub py-8">Tidak ada job.</p>
           </div>
         </UiSidePanel>
-        <FtthResultPanel v-else-if="right === 'result'" :project-id="ftth.focusId" :layer-vis="layerVis" @close="right = ''" @toggle-layer="toggleLayerKey" @export="exportFocused" @send="sendToAsset" @penetration="setPenetration" @zoom="ftth.focusId && fitTo(turf.bbox(ftth.results[ftth.focusId].layers.boundary) as any, 120)" />
+        <FtthResultPanel v-else-if="right === 'result'" :project-id="ftth.focusId" :layer-vis="layerVis" @close="right = ''" @toggle-layer="toggleLayerKey" @export="exportFocused" @send="finalize" @penetration="setPenetration" @zoom="ftth.focusId && fitTo(turf.bbox(ftth.results[ftth.focusId].layers.boundary) as any, 120)" />
         <UiSidePanel v-else title="Standar Desain JLM" subtitle="Parameter default · dapat diubah per proyek" @close="right = ''">
           <div class="border border-j-line rounded-[10px] divide-y divide-j-line text-[12px]">
             <div v-for="row in [['Area proyek', 'Per RW & per cluster (KML/KMZ/SHP/gambar)'], ['ODP → rumah', 'Maks 250 m'], ['Kapasitas ODP', '16 rumah · splitter 1:16'], ['Jarak antar tiang', 'Maks 60 m'], ['Tiang', 'T7 1-Stage lingkungan · T7 2-Stage jalan utama · T9 2-Stage crossing'], ['ODC', '24C → 16 ODP · 48C → 36 ODP'], ['ODP → ODC', 'Maks 1.000 m sekali tarikan'], ['Kabel', 'Backbone 96–288C · Feeder 48–96C · Sub Feeder 24–48C · Distribusi 12–24C'], ['Instalasi', 'Aerial + underground (review manual)'], ['Coil / JC', 'Coil 350 m feeder · 500 m backbone · JC per 3.500 m'], ['Skenario', 'Plan 100% · build awal 30% / 50%'], ['Output', 'KML, DWG, PDF, Excel BOQ/BOM'], ['Kode aset', 'BDG-F4599.48 (Feed GENOVA SUMMARECON BANDUNG_350M)']]" :key="row[0]" class="p-2.5 grid grid-cols-[6.5rem_1fr] gap-2"><span class="text-j-sub">{{ row[0] }}</span><span class="font-medium">{{ row[1] }}</span></div>

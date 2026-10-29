@@ -172,8 +172,8 @@ const statusColor: Record<string, string> = { Draft: "bg-j-soft text-j-ink", Des
       </template>
     </div>
     <template v-if="p && r" #footer>
-      <UButton block :color="p.status === 'Sent to Asset' ? 'gray' : 'green'" icon="i-heroicons-server-stack" class="justify-center" @click="$emit('send')">
-        {{ p.status === "Sent to Asset" ? "Kirim ulang ke inventaris aset" : "Kirim ke inventaris aset" }}
+      <UButton block :color="p.status === 'As-built' ? 'gray' : 'green'" :disabled="p.status === 'As-built'" icon="i-lucide-badge-check" class="justify-center" @click="$emit('send')">
+        {{ p.status === "As-built" ? "Sudah difinalisasi (As-built)" : "Finalisasi desain (As-built)" }}
       </UButton>
     </template>
   </UiSidePanel>

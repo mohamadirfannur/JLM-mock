@@ -1,5 +1,8 @@
 <script setup lang="ts">
 const auth = useAuthStore();
+const route = useRoute();
+const mod = computed(() => moduleOfPath(route.path));
+const tabOn = (to: string) => route.path === to;
 const asset = useAssetStore();
 const q = ref("");
 const open = ref(false);
@@ -14,7 +17,7 @@ function closeLater() {
 function go(id: string) {
   open.value = false;
   q.value = "";
-  navigateTo({ path: "/peta/asset", query: { site: id } });
+  navigateTo({ path: "/asset/peta", query: { site: id } });
 }
 const notif = computed(() => asset.activity.slice(0, 6));
 function logout() {
@@ -25,11 +28,19 @@ function logout() {
 
 <template>
   <header class="h-[60px] bg-white border-b border-j-line flex items-center justify-between px-6 shrink-0 relative z-40">
-    <NuxtLink to="/dashboard" class="flex items-center"><JLogo :h="35" /></NuxtLink>
+    <div class="flex items-center gap-6 min-w-0">
+      <NuxtLink to="/home" class="flex items-center shrink-0"><JLogo :h="35" /></NuxtLink>
+      <template v-if="mod">
+        <span class="j-tag-cyan font-display font-bold !h-6 shrink-0">{{ mod.short }}</span>
+        <nav class="flex items-center gap-1 overflow-x-auto hide-scrollbar">
+          <NuxtLink v-for="t in mod.tabs" :key="t.to" :to="t.to" class="h-8 px-3 rounded-[6px] flex items-center text-[13px] whitespace-nowrap transition-colors" :class="tabOn(t.to) ? 'bg-j-cyan/[0.1] text-j-ink font-display font-bold' : 'text-j-sub hover:text-j-ink'">{{ t.label }}</NuxtLink>
+        </nav>
+      </template>
+    </div>
     <div class="flex items-center gap-3">
       <div class="relative">
         <UIcon name="i-lucide-search" class="w-4 h-4 text-j-sub absolute left-3 top-1/2 -translate-y-1/2" />
-        <input v-model="q" class="j-input w-[220px] !pl-9" placeholder="Cari aset, lokasi, kode..." @focus="open = true" @blur="closeLater" />
+        <input v-model="q" class="j-input w-[200px] !pl-9" :placeholder="mod?.id === 'asset' || !mod ? 'Cari aset, lokasi, kode...' : 'Cari aset jaringan...'" @focus="open = true" @blur="closeLater" />
         <div v-if="open && results.length" class="absolute right-0 mt-1 w-[320px] j-panel py-1 z-50">
           <button v-for="r in results" :key="r.id" class="w-full text-left px-3 py-2 hover:bg-j-bg flex items-center justify-between gap-3" @mousedown.prevent="go(r.id)">
             <span class="text-[13px] font-medium truncate">{{ r.code }}</span>

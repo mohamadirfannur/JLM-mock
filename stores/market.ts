@@ -17,6 +17,16 @@ export const useMarketStore = defineStore("market", () => {
   const aois = ref<AoiEntry[]>([]);
   const activeId = ref<string | null>(null);
   const params = ref({ penetration: 30, arpu: 275000 });
+  const insights = ref<any[]>([]);
+  try {
+    const ri = localStorage.getItem(KEY + "-poi");
+    if (ri) insights.value = JSON.parse(ri);
+  } catch {}
+  watch(insights, (v) => {
+    try {
+      localStorage.setItem(KEY + "-poi", JSON.stringify(v));
+    } catch {}
+  }, { deep: true });
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) aois.value = JSON.parse(raw);
@@ -39,5 +49,5 @@ export const useMarketStore = defineStore("market", () => {
     aois.value = aois.value.filter((a) => a.id !== id);
     if (activeId.value === id) activeId.value = aois.value[0]?.id || null;
   }
-  return { aois, activeId, active, params, add, remove };
+  return { aois, activeId, active, params, insights, add, remove };
 });

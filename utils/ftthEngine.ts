@@ -659,3 +659,34 @@ export function polesAlong(coords: P[], spacing: number): P[] {
   return out;
 }
 export { dist as metersBetween };
+
+/** Up to k distinct road routes (R1 = shortest; later ones penalise edges already used). */
+export function routeOptions(roads: any[], a: P, b: P, k = 3): { coords: P[]; length: number; via: string }[] {
+  const g = buildGraph(roads);
+  if (!g.nodes.length) return [{ coords: [a, b], length: dist(a, b), via: "Garis lurus" }];
+  const { comp, largest } = components(g);
+  const na = nearestNode(g, a, comp, largest), nb = nearestNode(g, b, comp, largest);
+  const out: { coords: P[]; length: number; via: string }[] = [];
+  const used = new Set<string>();
+  const orig = g.adj.map((l) => l.map((e) => e.w));
+  for (let r = 0; r < k; r++) {
+    g.adj.forEach((l, u) => l.forEach((e, i) => (e.w = orig[u][i] * (used.has(u + ">" + e.to) ? 4 : 1))));
+    const { prev } = dijkstra(g, na);
+    const path = pathTo(prev, nb);
+    if (path[0] !== na) break;
+    const coords: P[] = [a, ...path.map((i) => g.nodes[i]), b];
+    const len = lineLen(coords);
+    const sig = path.filter((_, i) => i % 8 === 0).join(",");
+    if (out.some((o) => (o as any).sig === sig) || (out[0] && len > out[0].length * 1.8)) continue;
+    path.forEach((u, i) => i && (used.add(path[i - 1] + ">" + u), used.add(u + ">" + path[i - 1])));
+    const cls = new Map<string, number>();
+    for (let i = 1; i < path.length; i++) {
+      const e = g.adj[path[i - 1]].find((x) => x.to === path[i]);
+      if (e) cls.set(e.cls, (cls.get(e.cls) || 0) + orig[path[i - 1]][g.adj[path[i - 1]].indexOf(e)]);
+    }
+    const main = [...cls.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || "residential";
+    out.push(Object.assign({ coords, length: len, via: `Dominan jalan ${main}` }, { sig }));
+  }
+  g.adj.forEach((l, u) => l.forEach((e, i) => (e.w = orig[u][i])));
+  return out;
+}
